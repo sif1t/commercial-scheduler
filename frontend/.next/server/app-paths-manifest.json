@@ -1,0 +1,10 @@
+{
+  "/unauthorized/page": "app/unauthorized/page.js",
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
+  "/admin/page": "app/admin/page.js",
+  "/daily-sheet/page": "app/daily-sheet/page.js",
+  "/reports/page": "app/reports/page.js",
+  "/register/page": "app/register/page.js",
+  "/profile/page": "app/profile/page.js"
+}
