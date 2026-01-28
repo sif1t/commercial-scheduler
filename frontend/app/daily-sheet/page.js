@@ -111,6 +111,12 @@ function DailySheetContent() {
         start.setHours(0, 0, 0, 0);
         end.setHours(0, 0, 0, 0);
 
+        // Check if end date is before start date (invalid date range)
+        if (end < start) {
+            console.warn(`Invalid date range: End date (${endDate}) is before start date (${startDate})`);
+            return 0;
+        }
+
         // Calculate total days in the period (inclusive of both start and end dates)
         const timeDiff = end.getTime() - start.getTime();
         const totalDays = Math.ceil(timeDiff / (1000 * 60 * 60 * 24)) + 1;
