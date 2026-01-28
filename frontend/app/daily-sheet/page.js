@@ -222,8 +222,9 @@ function DailySheetContent() {
             return;
         }
 
-        // Get all products that have at least one entry
+        // Get all products that have at least one entry and still have remaining stock
         const productsWithEntries = products.filter(p => {
+            if (p.remainingStock <= 0) return false; // Skip completed products
             const morningEntry = parseInt(entries[`${p._id}_morning`]) || 0;
             const eveningEntry = parseInt(entries[`${p._id}_evening`]) || 0;
             const lateNightEntry = parseInt(entries[`${p._id}_lateNight`]) || 0;
@@ -392,7 +393,7 @@ function DailySheetContent() {
                 </div>
 
                 {/* Bulk Submit Button */}
-                {shiftStatus.active && products.length > 0 && (
+                {shiftStatus.active && products.filter(p => p.remainingStock > 0).length > 0 && (
                     <div className="mb-4 flex justify-end">
                         <button
                             onClick={handleSubmitAll}
@@ -401,6 +402,7 @@ function DailySheetContent() {
                         >
                             <span>📦</span>
                             <span>{loading ? 'Submitting All...' : `Submit All (${products.filter(p => {
+                                if (p.remainingStock <= 0) return false; // Skip completed products
                                 const m = parseInt(entries[`${p._id}_morning`]) || 0;
                                 const e = parseInt(entries[`${p._id}_evening`]) || 0;
                                 const l = parseInt(entries[`${p._id}_lateNight`]) || 0;
@@ -456,109 +458,111 @@ function DailySheetContent() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    products.map((product) => {
-                                        const dailyTarget = calculateDailyTarget(product.remainingStock, product.startDate, product.endDate);
-                                        const bdTime = getBangladeshTime();
-                                        const currentHour = bdTime.getHours();
-                                        const currentMinute = bdTime.getMinutes();
-                                        const totalMinutes = currentHour * 60 + currentMinute;
+                                    products
+                                        .filter(product => product.remainingStock > 0) // Hide completed products
+                                        .map((product) => {
+                                            const dailyTarget = calculateDailyTarget(product.remainingStock, product.startDate, product.endDate);
+                                            const bdTime = getBangladeshTime();
+                                            const currentHour = bdTime.getHours();
+                                            const currentMinute = bdTime.getMinutes();
+                                            const totalMinutes = currentHour * 60 + currentMinute;
 
-                                        // Morning field: available until 3:30 PM (930 minutes)
-                                        const isMorningDisabled = !(totalMinutes >= 420 && totalMinutes < 930) || !shiftStatus.active;
+                                            // Morning field: available until 3:30 PM (930 minutes)
+                                            const isMorningDisabled = !(totalMinutes >= 420 && totalMinutes < 930) || !shiftStatus.active;
 
-                                        // Evening field: available until 11:30 PM (1410 minutes)
-                                        const isEveningDisabled = !(totalMinutes >= 900 && totalMinutes < 1410) || !shiftStatus.active;
+                                            // Evening field: available until 11:30 PM (1410 minutes)
+                                            const isEveningDisabled = !(totalMinutes >= 900 && totalMinutes < 1410) || !shiftStatus.active;
 
-                                        // Late Night field: available from 11:00 PM to 3:20 AM (1380 minutes or more, OR less than 200 minutes)
-                                        const isLateNightDisabled = !((totalMinutes >= 1380) || (totalMinutes < 200)) || !shiftStatus.active;
+                                            // Late Night field: available from 11:00 PM to 3:20 AM (1380 minutes or more, OR less than 200 minutes)
+                                            const isLateNightDisabled = !((totalMinutes >= 1380) || (totalMinutes < 200)) || !shiftStatus.active;
 
-                                        return (
-                                            <tr key={product._id} className="hover:bg-gray-50">
-                                                <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900 text-sm">
-                                                    {product.name}
-                                                </td>
-                                                <td className="px-3 py-2 whitespace-nowrap text-gray-700 text-sm">
-                                                    {product.startDate ? new Date(product.startDate).toLocaleDateString('en-GB') : '-'}
-                                                </td>
-                                                <td className="px-3 py-2 whitespace-nowrap text-gray-700 text-sm">
-                                                    {product.endDate ? new Date(product.endDate).toLocaleDateString('en-GB') : '-'}
-                                                </td>
-                                                <td className="px-3 py-2 whitespace-nowrap text-gray-700 text-sm">
-                                                    {product.monthlyTarget}
-                                                </td>
-                                                <td className="px-3 py-2 whitespace-nowrap">
-                                                    <span className={`font-semibold ${product.remainingStock <= 0
-                                                        ? 'text-red-600'
-                                                        : product.remainingStock < product.monthlyTarget * 0.2
-                                                            ? 'text-orange-600'
-                                                            : 'text-green-600'
-                                                        }`}>
-                                                        {product.remainingStock}
-                                                    </span>
-                                                </td>
-                                                <td className="px-3 py-2 whitespace-nowrap">
-                                                    <span className="font-semibold text-blue-600 text-sm">
-                                                        {dailyTarget}
-                                                    </span>
-                                                </td>
-                                                <td className="px-3 py-2 whitespace-nowrap">
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        disabled={isMorningDisabled}
-                                                        value={entries[`${product._id}_morning`] || ''}
-                                                        onChange={(e) => handleInputChange(product._id, e.target.value, 'morning')}
-                                                        className={`w-20 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isMorningDisabled
-                                                            ? 'bg-gray-100 cursor-not-allowed text-gray-400'
-                                                            : 'border-gray-300'
-                                                            }`}
-                                                        placeholder={isMorningDisabled ? 'Locked' : '0'}
-                                                    />
-                                                </td>
-                                                <td className="px-3 py-2 whitespace-nowrap">
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        disabled={isEveningDisabled}
-                                                        value={entries[`${product._id}_evening`] || ''}
-                                                        onChange={(e) => handleInputChange(product._id, e.target.value, 'evening')}
-                                                        className={`w-20 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isEveningDisabled
-                                                            ? 'bg-gray-100 cursor-not-allowed text-gray-400'
-                                                            : 'border-gray-300'
-                                                            }`}
-                                                        placeholder={isEveningDisabled ? 'Locked' : '0'}
-                                                    />
-                                                </td>
-                                                <td className="px-3 py-2 whitespace-nowrap">
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        disabled={isLateNightDisabled}
-                                                        value={entries[`${product._id}_lateNight`] || ''}
-                                                        onChange={(e) => handleInputChange(product._id, e.target.value, 'lateNight')}
-                                                        className={`w-20 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isLateNightDisabled
-                                                            ? 'bg-gray-100 cursor-not-allowed text-gray-400'
-                                                            : 'border-gray-300'
-                                                            }`}
-                                                        placeholder={isLateNightDisabled ? 'Locked' : '0'}
-                                                    />
-                                                </td>
-                                                <td className="px-3 py-2 whitespace-nowrap">
-                                                    <button
-                                                        onClick={() => handleSubmit(product._id)}
-                                                        disabled={!shiftStatus.active || loading || (
-                                                            (parseInt(entries[`${product._id}_morning`]) || 0) <= 0 &&
-                                                            (parseInt(entries[`${product._id}_evening`]) || 0) <= 0 &&
-                                                            (parseInt(entries[`${product._id}_lateNight`]) || 0) <= 0
-                                                        )}
-                                                        className="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                                                    >
-                                                        {loading ? 'Saving...' : 'Submit'}
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
+                                            return (
+                                                <tr key={product._id} className="hover:bg-gray-50">
+                                                    <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900 text-sm">
+                                                        {product.name}
+                                                    </td>
+                                                    <td className="px-3 py-2 whitespace-nowrap text-gray-700 text-sm">
+                                                        {product.startDate ? new Date(product.startDate).toLocaleDateString('en-GB') : '-'}
+                                                    </td>
+                                                    <td className="px-3 py-2 whitespace-nowrap text-gray-700 text-sm">
+                                                        {product.endDate ? new Date(product.endDate).toLocaleDateString('en-GB') : '-'}
+                                                    </td>
+                                                    <td className="px-3 py-2 whitespace-nowrap text-gray-700 text-sm">
+                                                        {product.monthlyTarget}
+                                                    </td>
+                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                        <span className={`font-semibold ${product.remainingStock <= 0
+                                                            ? 'text-red-600'
+                                                            : product.remainingStock < product.monthlyTarget * 0.2
+                                                                ? 'text-orange-600'
+                                                                : 'text-green-600'
+                                                            }`}>
+                                                            {product.remainingStock}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                        <span className="font-semibold text-blue-600 text-sm">
+                                                            {dailyTarget}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            disabled={isMorningDisabled}
+                                                            value={entries[`${product._id}_morning`] || ''}
+                                                            onChange={(e) => handleInputChange(product._id, e.target.value, 'morning')}
+                                                            className={`w-20 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isMorningDisabled
+                                                                ? 'bg-gray-100 cursor-not-allowed text-gray-400'
+                                                                : 'border-gray-300'
+                                                                }`}
+                                                            placeholder={isMorningDisabled ? 'Locked' : '0'}
+                                                        />
+                                                    </td>
+                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            disabled={isEveningDisabled}
+                                                            value={entries[`${product._id}_evening`] || ''}
+                                                            onChange={(e) => handleInputChange(product._id, e.target.value, 'evening')}
+                                                            className={`w-20 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isEveningDisabled
+                                                                ? 'bg-gray-100 cursor-not-allowed text-gray-400'
+                                                                : 'border-gray-300'
+                                                                }`}
+                                                            placeholder={isEveningDisabled ? 'Locked' : '0'}
+                                                        />
+                                                    </td>
+                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            disabled={isLateNightDisabled}
+                                                            value={entries[`${product._id}_lateNight`] || ''}
+                                                            onChange={(e) => handleInputChange(product._id, e.target.value, 'lateNight')}
+                                                            className={`w-20 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isLateNightDisabled
+                                                                ? 'bg-gray-100 cursor-not-allowed text-gray-400'
+                                                                : 'border-gray-300'
+                                                                }`}
+                                                            placeholder={isLateNightDisabled ? 'Locked' : '0'}
+                                                        />
+                                                    </td>
+                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                        <button
+                                                            onClick={() => handleSubmit(product._id)}
+                                                            disabled={!shiftStatus.active || loading || (
+                                                                (parseInt(entries[`${product._id}_morning`]) || 0) <= 0 &&
+                                                                (parseInt(entries[`${product._id}_evening`]) || 0) <= 0 &&
+                                                                (parseInt(entries[`${product._id}_lateNight`]) || 0) <= 0
+                                                            )}
+                                                            className="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                                                        >
+                                                            {loading ? 'Saving...' : 'Submit'}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
                                 )}
                             </tbody>
                         </table>
