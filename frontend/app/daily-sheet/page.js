@@ -90,21 +90,34 @@ function DailySheetContent() {
         }
     };
 
-    const calculateDailyTarget = (remainingStock) => {
+    const calculateDailyTarget = (remainingStock, startDate, endDate) => {
         const today = new Date();
-        const currentMonth = today.getMonth();
-        const currentYear = today.getFullYear();
+        today.setHours(0, 0, 0, 0);
 
-        // Get the last day of current month
-        const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
-        const currentDay = today.getDate();
+        // If no end date provided, fallback to end of current month
+        if (!endDate) {
+            const currentMonth = today.getMonth();
+            const currentYear = today.getFullYear();
+            const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const currentDay = today.getDate();
+            const remainingDays = lastDay - currentDay + 1;
+            if (remainingDays <= 0) return 0;
+            return Math.ceil(remainingStock / remainingDays);
+        }
 
-        // Calculate remaining days including today
-        const remainingDays = lastDay - currentDay + 1;
+        // Calculate total working days from start date to end date
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
 
-        if (remainingDays <= 0) return 0;
+        // Calculate total days in the period (inclusive of both start and end dates)
+        const timeDiff = end.getTime() - start.getTime();
+        const totalDays = Math.ceil(timeDiff / (1000 * 60 * 60 * 24)) + 1;
 
-        return Math.ceil(remainingStock / remainingDays);
+        if (totalDays <= 0) return 0;
+
+        return Math.ceil(remainingStock / totalDays);
     };
 
     const handleInputChange = (productId, value, shift) => {
@@ -438,7 +451,7 @@ function DailySheetContent() {
                                     </tr>
                                 ) : (
                                     products.map((product) => {
-                                        const dailyTarget = calculateDailyTarget(product.remainingStock);
+                                        const dailyTarget = calculateDailyTarget(product.remainingStock, product.startDate, product.endDate);
                                         const bdTime = getBangladeshTime();
                                         const currentHour = bdTime.getHours();
                                         const currentMinute = bdTime.getMinutes();
