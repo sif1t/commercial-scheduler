@@ -113,48 +113,70 @@ function ReportsContent() {
         const startDateStr = new Date(startDate).toLocaleDateString('en-GB');
         const endDateStr = new Date(endDate).toLocaleDateString('en-GB');
 
-        // ========== MAIN REPORT SHEET ==========
-        const mainData = [];
+        // Calculate totals
+        const totalTarget = reportData.products.reduce((sum, p) => sum + p.monthlyTarget, 0);
+        const totalProduced = reportData.products.reduce((sum, p) => sum + p.totalProduced, 0);
+        const totalRemaining = reportData.products.reduce((sum, p) => sum + p.remainingTarget, 0);
 
-        // Header
-        mainData.push(['MONTHLY PRODUCTION REPORT']);
-        mainData.push([`${monthNameForExport} ${selectedYear}`]);
-        mainData.push([`Period: ${startDateStr} - ${endDateStr}`]);
-        mainData.push([`Generated: ${new Date().toLocaleString('en-GB')}`]);
-        mainData.push([]);
+        // ========== SHEET 1: PRODUCTION SUMMARY ==========
+        const summaryData = [];
 
-        // === PRODUCTION SUMMARY ===
-        mainData.push(['PRODUCTION SUMMARY']);
-        mainData.push(['Product', 'Target', 'Produced', 'Remaining', 'Progress %', 'Status']);
+        // Title rows
+        summaryData.push([`Monthly Production Report - ${monthNameForExport} ${selectedYear}`]);
+        summaryData.push([`Period: ${startDateStr} to ${endDateStr}`]);
+        summaryData.push([`Generated: ${new Date().toLocaleString('en-GB')}`]);
+        summaryData.push([]);
 
+        // Table header
+        summaryData.push(['Product Name', 'Monthly Target', 'Total Produced', 'Remaining', 'Progress %', 'Status']);
+
+        // Product data
         reportData.products.forEach(product => {
             const progress = ((product.totalProduced / product.monthlyTarget) * 100).toFixed(1);
             const status = product.remainingTarget <= 0 ? 'COMPLETED' :
                 product.remainingTarget < product.monthlyTarget * 0.2 ? 'NEAR COMPLETION' : 'IN PROGRESS';
 
-            mainData.push([
+            summaryData.push([
                 product.productName,
                 product.monthlyTarget,
                 product.totalProduced,
                 product.remainingTarget,
-                `${progress}%`,
+                parseFloat(progress),
                 status
             ]);
         });
 
-        const totalTarget = reportData.products.reduce((sum, p) => sum + p.monthlyTarget, 0);
-        const totalProduced = reportData.products.reduce((sum, p) => sum + p.totalProduced, 0);
-        const totalRemaining = reportData.products.reduce((sum, p) => sum + p.remainingTarget, 0);
+        // Total row
         const overallProgress = ((totalProduced / totalTarget) * 100).toFixed(1);
+        summaryData.push([
+            'TOTAL',
+            totalTarget,
+            totalProduced,
+            totalRemaining,
+            parseFloat(overallProgress),
+            ''
+        ]);
 
-        mainData.push(['TOTAL', totalTarget, totalProduced, totalRemaining, `${overallProgress}%`, '']);
-        mainData.push([]);
-        mainData.push([]);
+        const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+        wsSummary['!cols'] = [
+            { wch: 20 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 12 },
+            { wch: 12 },
+            { wch: 18 }
+        ];
+        XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
 
-        // === DAILY BREAKDOWN ===
-        mainData.push(['DAILY PRODUCTION BREAKDOWN']);
+        // ========== SHEET 2: DAILY BREAKDOWN ==========
+        const dailyData = [];
 
-        // Collect and sort dates
+        // Title rows
+        dailyData.push(['Daily Production Breakdown']);
+        dailyData.push([`Period: ${startDateStr} to ${endDateStr}`]);
+        dailyData.push([]);
+
+        // Collect and sort all dates
         const allDates = new Set();
         reportData.products.forEach(product => {
             product.entries.forEach(entry => {
@@ -168,13 +190,13 @@ function ReportsContent() {
             return new Date(yearA, monthA - 1, dayA) - new Date(yearB, monthB - 1, dayB);
         });
 
-        // Daily table header
-        const dailyHeader = ['Date'];
-        reportData.products.forEach(p => dailyHeader.push(p.productName));
-        dailyHeader.push('DAILY TOTAL');
-        mainData.push(dailyHeader);
+        // Header row
+        const headerRow = ['Date'];
+        reportData.products.forEach(p => headerRow.push(p.productName));
+        headerRow.push('Daily Total');
+        dailyData.push(headerRow);
 
-        // Daily table rows
+        // Data rows
         sortedDates.forEach(dateStr => {
             const row = [dateStr];
             let dailyTotal = 0;
@@ -189,59 +211,83 @@ function ReportsContent() {
             });
 
             row.push(dailyTotal);
-            mainData.push(row);
+            dailyData.push(row);
         });
 
-        // Daily totals row
-        const dailyTotals = ['TOTAL'];
-        reportData.products.forEach(p => dailyTotals.push(p.totalProduced));
-        dailyTotals.push(totalProduced);
-        mainData.push(dailyTotals);
-        mainData.push([]);
-        mainData.push([]);
+        // Total row
+        const totalsRow = ['TOTAL'];
+        reportData.products.forEach(p => totalsRow.push(p.totalProduced));
+        totalsRow.push(totalProduced);
+        dailyData.push(totalsRow);
 
-        // === DETAILED SHIFT-WISE BREAKDOWN ===
-        mainData.push(['DETAILED SHIFT-WISE BREAKDOWN']);
-        mainData.push([]);
+        const wsDaily = XLSX.utils.aoa_to_sheet(dailyData);
+        const dailyCols = [{ wch: 12 }];
+        reportData.products.forEach(() => dailyCols.push({ wch: 15 }));
+        dailyCols.push({ wch: 15 });
+        wsDaily['!cols'] = dailyCols;
+        XLSX.utils.book_append_sheet(wb, wsDaily, 'Daily Breakdown');
 
-        reportData.products.forEach((product, index) => {
-            if (index > 0) mainData.push([]);
+        // ========== SHEET 3: DETAILED ENTRIES ==========
+        const detailData = [];
 
-            mainData.push([`${product.productName} - Target: ${product.monthlyTarget} | Produced: ${product.totalProduced} | Remaining: ${product.remainingTarget}`]);
-            mainData.push(['Date', 'Morning', 'Evening', 'Late Night', 'Daily Total', 'Entered By']);
+        // Title rows
+        detailData.push(['Detailed Production Entries (Shift-wise)']);
+        detailData.push([`Period: ${startDateStr} to ${endDateStr}`]);
+        detailData.push([]);
 
+        // Header row
+        detailData.push(['Date', 'Product', 'Morning Shift', 'Evening Shift', 'Late Night Shift', 'Daily Total', 'Entered By']);
+
+        // Collect all entries and sort by date
+        const allEntries = [];
+        reportData.products.forEach(product => {
             product.entries.forEach(entry => {
-                mainData.push([
-                    new Date(entry.date).toLocaleDateString('en-GB'),
-                    entry.morningCount || 0,
-                    entry.eveningCount || 0,
-                    entry.lateNightCount || 0,
-                    entry.dailyTotal,
-                    entry.enteredBy
-                ]);
+                allEntries.push({
+                    date: new Date(entry.date),
+                    dateStr: new Date(entry.date).toLocaleDateString('en-GB'),
+                    product: product.productName,
+                    morning: entry.morningCount || 0,
+                    evening: entry.eveningCount || 0,
+                    lateNight: entry.lateNightCount || 0,
+                    total: entry.dailyTotal,
+                    enteredBy: entry.enteredBy
+                });
             });
         });
 
-        // Create worksheet
-        const ws = XLSX.utils.aoa_to_sheet(mainData);
+        // Sort by date
+        allEntries.sort((a, b) => a.date - b.date);
 
-        // Set column widths
-        ws['!cols'] = [
-            { wch: 15 },  // Col A
-            { wch: 15 },  // Col B
-            { wch: 15 },  // Col C
-            { wch: 15 },  // Col D
-            { wch: 12 },  // Col E
-            { wch: 18 }   // Col F
+        // Add data rows
+        allEntries.forEach(entry => {
+            detailData.push([
+                entry.dateStr,
+                entry.product,
+                entry.morning,
+                entry.evening,
+                entry.lateNight,
+                entry.total,
+                entry.enteredBy
+            ]);
+        });
+
+        const wsDetail = XLSX.utils.aoa_to_sheet(detailData);
+        wsDetail['!cols'] = [
+            { wch: 12 },
+            { wch: 18 },
+            { wch: 15 },
+            { wch: 15 },
+            { wch: 18 },
+            { wch: 12 },
+            { wch: 20 }
         ];
-
-        XLSX.utils.book_append_sheet(wb, ws, 'Production Report');
+        XLSX.utils.book_append_sheet(wb, wsDetail, 'Detailed Entries');
 
         // Generate filename
         const monthName = months.find(m => m.value === selectedMonth.toString())?.label;
         const startDay = new Date(startDate).getDate();
         const endDay = new Date(endDate).getDate();
-        const filename = `Report_${monthName}_${selectedYear}_${startDay}to${endDay}.xlsx`;
+        const filename = `Production_Report_${monthName}_${selectedYear}_${startDay}-${endDay}.xlsx`;
 
         // Download file
         XLSX.writeFile(wb, filename);
