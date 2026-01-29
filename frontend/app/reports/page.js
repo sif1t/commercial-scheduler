@@ -333,7 +333,7 @@ function ReportsContent() {
                 <div className="bg-white rounded-lg shadow-md p-6 mb-6">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                         <h2 className="text-2xl font-bold text-gray-800">📅 Product Schedule Overview</h2>
-                        
+
                         <div className="flex flex-col sm:flex-row gap-3">
                             <select
                                 value={scheduleMonth}
@@ -385,24 +385,24 @@ function ReportsContent() {
                                     {(() => {
                                         const filteredProducts = products.filter(p => {
                                             if (p.team !== 'video') return false;
-                                            
+
                                             // If no month/year selected, show all
                                             if (!scheduleMonth && !scheduleYear) return true;
-                                            
+
                                             // Check if product's date range overlaps with selected month/year
                                             if (p.startDate && p.endDate && scheduleMonth && scheduleYear) {
                                                 const productStart = new Date(p.startDate);
                                                 const productEnd = new Date(p.endDate);
                                                 const selectedMonthStart = new Date(parseInt(scheduleYear), parseInt(scheduleMonth) - 1, 1);
                                                 const selectedMonthEnd = new Date(parseInt(scheduleYear), parseInt(scheduleMonth), 0);
-                                                
+
                                                 // Check for overlap
                                                 return productStart <= selectedMonthEnd && productEnd >= selectedMonthStart;
                                             }
-                                            
+
                                             return true;
                                         });
-                                        
+
                                         if (filteredProducts.length === 0) {
                                             return (
                                                 <tr>
@@ -412,13 +412,13 @@ function ReportsContent() {
                                                 </tr>
                                             );
                                         }
-                                        
+
                                         return filteredProducts.map((product) => {
                                             const startDate = product.startDate ? new Date(product.startDate) : null;
                                             const endDate = product.endDate ? new Date(product.endDate) : null;
                                             const monthYear = startDate ? startDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : '-';
                                             const isActive = product.isActive && product.remainingStock > 0;
-                                            
+
                                             return (
                                                 <tr key={product._id} className="hover:bg-purple-50">
                                                     <td className="px-4 py-3 font-semibold text-gray-900">{product.name}</td>
@@ -432,16 +432,15 @@ function ReportsContent() {
                                                     <td className="px-4 py-3 text-sm font-medium text-purple-700">{monthYear}</td>
                                                     <td className="px-4 py-3 font-bold text-blue-600">{product.monthlyTarget.toLocaleString()}</td>
                                                     <td className="px-4 py-3">
-                                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                                                            isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                                                        }`}>
+                                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                                                            }`}>
                                                             {isActive ? 'ACTIVE' : product.remainingStock <= 0 ? 'COMPLETED' : 'INACTIVE'}
                                                         </span>
                                                     </td>
                                                 </tr>
                                             );
-                                        })
-                                    )}
+                                        });
+                                    })()}
                                 </tbody>
                             </table>
                         </div>
@@ -469,24 +468,24 @@ function ReportsContent() {
                                     {(() => {
                                         const filteredProducts = products.filter(p => {
                                             if (p.team !== 'portal') return false;
-                                            
+
                                             // If no month/year selected, show all
                                             if (!scheduleMonth && !scheduleYear) return true;
-                                            
+
                                             // Check if product's date range overlaps with selected month/year
                                             if (p.startDate && p.endDate && scheduleMonth && scheduleYear) {
                                                 const productStart = new Date(p.startDate);
                                                 const productEnd = new Date(p.endDate);
                                                 const selectedMonthStart = new Date(parseInt(scheduleYear), parseInt(scheduleMonth) - 1, 1);
                                                 const selectedMonthEnd = new Date(parseInt(scheduleYear), parseInt(scheduleMonth), 0);
-                                                
+
                                                 // Check for overlap
                                                 return productStart <= selectedMonthEnd && productEnd >= selectedMonthStart;
                                             }
-                                            
+
                                             return true;
                                         });
-                                        
+
                                         if (filteredProducts.length === 0) {
                                             return (
                                                 <tr>
@@ -496,13 +495,13 @@ function ReportsContent() {
                                                 </tr>
                                             );
                                         }
-                                        
+
                                         return filteredProducts.map((product) => {
                                             const startDate = product.startDate ? new Date(product.startDate) : null;
                                             const endDate = product.endDate ? new Date(product.endDate) : null;
                                             const monthYear = startDate ? startDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : '-';
                                             const isActive = product.isActive && product.remainingStock > 0;
-                                            
+
                                             return (
                                                 <tr key={product._id} className="hover:bg-green-50">
                                                     <td className="px-4 py-3 font-semibold text-gray-900">{product.name}</td>
@@ -516,9 +515,8 @@ function ReportsContent() {
                                                     <td className="px-4 py-3 text-sm font-medium text-green-700">{monthYear}</td>
                                                     <td className="px-4 py-3 font-bold text-blue-600">{product.monthlyTarget.toLocaleString()}</td>
                                                     <td className="px-4 py-3">
-                                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                                                            isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                                                        }`}>
+                                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                                                            }`}>
                                                             {isActive ? 'ACTIVE' : product.remainingStock <= 0 ? 'COMPLETED' : 'INACTIVE'}
                                                         </span>
                                                     </td>
