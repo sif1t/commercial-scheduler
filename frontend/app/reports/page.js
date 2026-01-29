@@ -23,6 +23,7 @@ function ReportsContent() {
     const [products, setProducts] = useState([]);
     const [scheduleMonth, setScheduleMonth] = useState('');
     const [scheduleYear, setScheduleYear] = useState('');
+    const [scheduleTeam, setScheduleTeam] = useState('all');
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -336,6 +337,16 @@ function ReportsContent() {
 
                         <div className="flex flex-col sm:flex-row gap-3">
                             <select
+                                value={scheduleTeam}
+                                onChange={(e) => setScheduleTeam(e.target.value)}
+                                className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-semibold"
+                            >
+                                <option value="all">All Teams</option>
+                                <option value="video">Video Team</option>
+                                <option value="portal">Portal Team</option>
+                            </select>
+
+                            <select
                                 value={scheduleMonth}
                                 onChange={(e) => setScheduleMonth(e.target.value)}
                                 className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
@@ -364,170 +375,174 @@ function ReportsContent() {
                     </div>
 
                     {/* Video Team Schedule */}
-                    <div className="mb-8">
-                        <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-4 py-3 rounded-t-lg">
-                            <h3 className="text-xl font-bold text-white">🎥 Video Team Products</h3>
-                        </div>
-                        <div className="overflow-x-auto border border-purple-200 rounded-b-lg">
-                            <table className="w-full">
-                                <thead className="bg-purple-50">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase">Product</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase">Brand</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase">Start Date</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase">End Date</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase">Month/Year</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase">Target</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-purple-100">
-                                    {(() => {
-                                        const filteredProducts = products.filter(p => {
-                                            if (p.team !== 'video') return false;
+                    {(scheduleTeam === 'all' || scheduleTeam === 'video') && (
+                        <div className="mb-8">
+                            <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-4 py-3 rounded-t-lg">
+                                <h3 className="text-xl font-bold text-white">🎥 Video Team Products</h3>
+                            </div>
+                            <div className="overflow-x-auto border border-purple-200 rounded-b-lg">
+                                <table className="w-full">
+                                    <thead className="bg-purple-50">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase">Product</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase">Brand</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase">Start Date</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase">End Date</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase">Month/Year</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase">Target</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-purple-100">
+                                        {(() => {
+                                            const filteredProducts = products.filter(p => {
+                                                if (p.team !== 'video') return false;
 
-                                            // If no month/year selected, show all
-                                            if (!scheduleMonth && !scheduleYear) return true;
+                                                // If no month/year selected, show all
+                                                if (!scheduleMonth && !scheduleYear) return true;
 
-                                            // Check if product's date range overlaps with selected month/year
-                                            if (p.startDate && p.endDate && scheduleMonth && scheduleYear) {
-                                                const productStart = new Date(p.startDate);
-                                                const productEnd = new Date(p.endDate);
-                                                const selectedMonthStart = new Date(parseInt(scheduleYear), parseInt(scheduleMonth) - 1, 1);
-                                                const selectedMonthEnd = new Date(parseInt(scheduleYear), parseInt(scheduleMonth), 0);
+                                                // Check if product's date range overlaps with selected month/year
+                                                if (p.startDate && p.endDate && scheduleMonth && scheduleYear) {
+                                                    const productStart = new Date(p.startDate);
+                                                    const productEnd = new Date(p.endDate);
+                                                    const selectedMonthStart = new Date(parseInt(scheduleYear), parseInt(scheduleMonth) - 1, 1);
+                                                    const selectedMonthEnd = new Date(parseInt(scheduleYear), parseInt(scheduleMonth), 0);
 
-                                                // Check for overlap
-                                                return productStart <= selectedMonthEnd && productEnd >= selectedMonthStart;
+                                                    // Check for overlap
+                                                    return productStart <= selectedMonthEnd && productEnd >= selectedMonthStart;
+                                                }
+
+                                                return true;
+                                            });
+
+                                            if (filteredProducts.length === 0) {
+                                                return (
+                                                    <tr>
+                                                        <td colSpan="7" className="px-4 py-6 text-center text-gray-500">
+                                                            No video team products found for selected period
+                                                        </td>
+                                                    </tr>
+                                                );
                                             }
 
-                                            return true;
-                                        });
+                                            return filteredProducts.map((product) => {
+                                                const startDate = product.startDate ? new Date(product.startDate) : null;
+                                                const endDate = product.endDate ? new Date(product.endDate) : null;
+                                                const monthYear = startDate ? startDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : '-';
+                                                const isActive = product.isActive && product.remainingStock > 0;
 
-                                        if (filteredProducts.length === 0) {
-                                            return (
-                                                <tr>
-                                                    <td colSpan="7" className="px-4 py-6 text-center text-gray-500">
-                                                        No video team products found for selected period
-                                                    </td>
-                                                </tr>
-                                            );
-                                        }
-
-                                        return filteredProducts.map((product) => {
-                                            const startDate = product.startDate ? new Date(product.startDate) : null;
-                                            const endDate = product.endDate ? new Date(product.endDate) : null;
-                                            const monthYear = startDate ? startDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : '-';
-                                            const isActive = product.isActive && product.remainingStock > 0;
-
-                                            return (
-                                                <tr key={product._id} className="hover:bg-purple-50">
-                                                    <td className="px-4 py-3 font-semibold text-gray-900">{product.name}</td>
-                                                    <td className="px-4 py-3 text-gray-700">{product.brand || '-'}</td>
-                                                    <td className="px-4 py-3 text-sm text-gray-600">
-                                                        {startDate ? startDate.toLocaleDateString('en-GB') : '-'}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm text-gray-600">
-                                                        {endDate ? endDate.toLocaleDateString('en-GB') : '-'}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm font-medium text-purple-700">{monthYear}</td>
-                                                    <td className="px-4 py-3 font-bold text-blue-600">{product.monthlyTarget.toLocaleString()}</td>
-                                                    <td className="px-4 py-3">
-                                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                                                            }`}>
-                                                            {isActive ? 'ACTIVE' : product.remainingStock <= 0 ? 'COMPLETED' : 'INACTIVE'}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        });
-                                    })()}
-                                </tbody>
-                            </table>
+                                                return (
+                                                    <tr key={product._id} className="hover:bg-purple-50">
+                                                        <td className="px-4 py-3 font-semibold text-gray-900">{product.name}</td>
+                                                        <td className="px-4 py-3 text-gray-700">{product.brand || '-'}</td>
+                                                        <td className="px-4 py-3 text-sm text-gray-600">
+                                                            {startDate ? startDate.toLocaleDateString('en-GB') : '-'}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-gray-600">
+                                                            {endDate ? endDate.toLocaleDateString('en-GB') : '-'}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm font-medium text-purple-700">{monthYear}</td>
+                                                        <td className="px-4 py-3 font-bold text-blue-600">{product.monthlyTarget.toLocaleString()}</td>
+                                                        <td className="px-4 py-3">
+                                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                                                                }`}>
+                                                                {isActive ? 'ACTIVE' : product.remainingStock <= 0 ? 'COMPLETED' : 'INACTIVE'}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            });
+                                        })()}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Portal Team Schedule */}
-                    <div>
-                        <div className="bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 rounded-t-lg">
-                            <h3 className="text-xl font-bold text-white">🌐 Portal Team Products</h3>
-                        </div>
-                        <div className="overflow-x-auto border border-green-200 rounded-b-lg">
-                            <table className="w-full">
-                                <thead className="bg-green-50">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase">Product</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase">Brand</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase">Start Date</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase">End Date</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase">Month/Year</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase">Target</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-green-100">
-                                    {(() => {
-                                        const filteredProducts = products.filter(p => {
-                                            if (p.team !== 'portal') return false;
+                    {(scheduleTeam === 'all' || scheduleTeam === 'portal') && (
+                        <div>
+                            <div className="bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 rounded-t-lg">
+                                <h3 className="text-xl font-bold text-white">🌐 Portal Team Products</h3>
+                            </div>
+                            <div className="overflow-x-auto border border-green-200 rounded-b-lg">
+                                <table className="w-full">
+                                    <thead className="bg-green-50">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase">Product</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase">Brand</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase">Start Date</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase">End Date</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase">Month/Year</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase">Target</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-green-100">
+                                        {(() => {
+                                            const filteredProducts = products.filter(p => {
+                                                if (p.team !== 'portal') return false;
 
-                                            // If no month/year selected, show all
-                                            if (!scheduleMonth && !scheduleYear) return true;
+                                                // If no month/year selected, show all
+                                                if (!scheduleMonth && !scheduleYear) return true;
 
-                                            // Check if product's date range overlaps with selected month/year
-                                            if (p.startDate && p.endDate && scheduleMonth && scheduleYear) {
-                                                const productStart = new Date(p.startDate);
-                                                const productEnd = new Date(p.endDate);
-                                                const selectedMonthStart = new Date(parseInt(scheduleYear), parseInt(scheduleMonth) - 1, 1);
-                                                const selectedMonthEnd = new Date(parseInt(scheduleYear), parseInt(scheduleMonth), 0);
+                                                // Check if product's date range overlaps with selected month/year
+                                                if (p.startDate && p.endDate && scheduleMonth && scheduleYear) {
+                                                    const productStart = new Date(p.startDate);
+                                                    const productEnd = new Date(p.endDate);
+                                                    const selectedMonthStart = new Date(parseInt(scheduleYear), parseInt(scheduleMonth) - 1, 1);
+                                                    const selectedMonthEnd = new Date(parseInt(scheduleYear), parseInt(scheduleMonth), 0);
 
-                                                // Check for overlap
-                                                return productStart <= selectedMonthEnd && productEnd >= selectedMonthStart;
+                                                    // Check for overlap
+                                                    return productStart <= selectedMonthEnd && productEnd >= selectedMonthStart;
+                                                }
+
+                                                return true;
+                                            });
+
+                                            if (filteredProducts.length === 0) {
+                                                return (
+                                                    <tr>
+                                                        <td colSpan="7" className="px-4 py-6 text-center text-gray-500">
+                                                            No portal team products found for selected period
+                                                        </td>
+                                                    </tr>
+                                                );
                                             }
 
-                                            return true;
-                                        });
+                                            return filteredProducts.map((product) => {
+                                                const startDate = product.startDate ? new Date(product.startDate) : null;
+                                                const endDate = product.endDate ? new Date(product.endDate) : null;
+                                                const monthYear = startDate ? startDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : '-';
+                                                const isActive = product.isActive && product.remainingStock > 0;
 
-                                        if (filteredProducts.length === 0) {
-                                            return (
-                                                <tr>
-                                                    <td colSpan="7" className="px-4 py-6 text-center text-gray-500">
-                                                        No portal team products found for selected period
-                                                    </td>
-                                                </tr>
-                                            );
-                                        }
-
-                                        return filteredProducts.map((product) => {
-                                            const startDate = product.startDate ? new Date(product.startDate) : null;
-                                            const endDate = product.endDate ? new Date(product.endDate) : null;
-                                            const monthYear = startDate ? startDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : '-';
-                                            const isActive = product.isActive && product.remainingStock > 0;
-
-                                            return (
-                                                <tr key={product._id} className="hover:bg-green-50">
-                                                    <td className="px-4 py-3 font-semibold text-gray-900">{product.name}</td>
-                                                    <td className="px-4 py-3 text-gray-700">{product.brand || '-'}</td>
-                                                    <td className="px-4 py-3 text-sm text-gray-600">
-                                                        {startDate ? startDate.toLocaleDateString('en-GB') : '-'}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm text-gray-600">
-                                                        {endDate ? endDate.toLocaleDateString('en-GB') : '-'}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm font-medium text-green-700">{monthYear}</td>
-                                                    <td className="px-4 py-3 font-bold text-blue-600">{product.monthlyTarget.toLocaleString()}</td>
-                                                    <td className="px-4 py-3">
-                                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                                                            }`}>
-                                                            {isActive ? 'ACTIVE' : product.remainingStock <= 0 ? 'COMPLETED' : 'INACTIVE'}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        });
-                                    })()}
-                                </tbody>
-                            </table>
+                                                return (
+                                                    <tr key={product._id} className="hover:bg-green-50">
+                                                        <td className="px-4 py-3 font-semibold text-gray-900">{product.name}</td>
+                                                        <td className="px-4 py-3 text-gray-700">{product.brand || '-'}</td>
+                                                        <td className="px-4 py-3 text-sm text-gray-600">
+                                                            {startDate ? startDate.toLocaleDateString('en-GB') : '-'}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-gray-600">
+                                                            {endDate ? endDate.toLocaleDateString('en-GB') : '-'}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm font-medium text-green-700">{monthYear}</td>
+                                                        <td className="px-4 py-3 font-bold text-blue-600">{product.monthlyTarget.toLocaleString()}</td>
+                                                        <td className="px-4 py-3">
+                                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                                                                }`}>
+                                                                {isActive ? 'ACTIVE' : product.remainingStock <= 0 ? 'COMPLETED' : 'INACTIVE'}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            });
+                                        })()}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* Filters */}

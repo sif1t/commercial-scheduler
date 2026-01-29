@@ -1,6 +1,4 @@
 {
   "/page": "app/page.js",
-  "/daily-sheet/page": "app/daily-sheet/page.js",
-  "/admin/page": "app/admin/page.js",
   "/reports/page": "app/reports/page.js"
 }
