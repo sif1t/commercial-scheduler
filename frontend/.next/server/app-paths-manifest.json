@@ -1,1 +1,7 @@
-{}
+{
+  "/page": "app/page.js",
+  "/reports/page": "app/reports/page.js",
+  "/daily-sheet/page": "app/daily-sheet/page.js",
+  "/login/page": "app/login/page.js",
+  "/admin/page": "app/admin/page.js"
+}

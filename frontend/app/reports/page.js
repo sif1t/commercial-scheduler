@@ -108,67 +108,134 @@ function ReportsContent() {
             return;
         }
 
-        // Prepare data for Excel
-        const excelData = [];
-
-        // Add header
+        const wb = XLSX.utils.book_new();
         const monthNameForExport = months.find(m => m.value === selectedMonth.toString())?.label;
-        const startDateStr = new Date(startDate).toLocaleDateString();
-        const endDateStr = new Date(endDate).toLocaleDateString();
-        excelData.push([`Monthly Report - ${monthNameForExport} ${selectedYear}`]);
-        excelData.push([`Date Range: ${startDateStr} - ${endDateStr}`]);
-        excelData.push([]); // Empty row
+        const startDateStr = new Date(startDate).toLocaleDateString('en-GB');
+        const endDateStr = new Date(endDate).toLocaleDateString('en-GB');
 
-        // For each product
+        // ========== MAIN REPORT SHEET ==========
+        const mainData = [];
+
+        // Header
+        mainData.push(['MONTHLY PRODUCTION REPORT']);
+        mainData.push([`${monthNameForExport} ${selectedYear}`]);
+        mainData.push([`Period: ${startDateStr} - ${endDateStr}`]);
+        mainData.push([`Generated: ${new Date().toLocaleString('en-GB')}`]);
+        mainData.push([]);
+
+        // === PRODUCTION SUMMARY ===
+        mainData.push(['PRODUCTION SUMMARY']);
+        mainData.push(['Product', 'Target', 'Produced', 'Remaining', 'Progress %', 'Status']);
+
         reportData.products.forEach(product => {
-            // Product header
-            excelData.push([product.productName]);
-            excelData.push([
-                'Monthly Target:',
+            const progress = ((product.totalProduced / product.monthlyTarget) * 100).toFixed(1);
+            const status = product.remainingTarget <= 0 ? 'COMPLETED' :
+                product.remainingTarget < product.monthlyTarget * 0.2 ? 'NEAR COMPLETION' : 'IN PROGRESS';
+
+            mainData.push([
+                product.productName,
                 product.monthlyTarget,
-                '',
-                'Total Produced:',
                 product.totalProduced,
-                '',
-                'Remaining:',
-                product.remainingTarget
+                product.remainingTarget,
+                `${progress}%`,
+                status
             ]);
-            excelData.push([]); // Empty row
+        });
 
-            // Daily entries header
-            excelData.push(['Date', 'Morning Count', 'Evening Count', 'Daily Total', 'Entered By']);
+        const totalTarget = reportData.products.reduce((sum, p) => sum + p.monthlyTarget, 0);
+        const totalProduced = reportData.products.reduce((sum, p) => sum + p.totalProduced, 0);
+        const totalRemaining = reportData.products.reduce((sum, p) => sum + p.remainingTarget, 0);
+        const overallProgress = ((totalProduced / totalTarget) * 100).toFixed(1);
 
-            // Daily entries data
+        mainData.push(['TOTAL', totalTarget, totalProduced, totalRemaining, `${overallProgress}%`, '']);
+        mainData.push([]);
+        mainData.push([]);
+
+        // === DAILY BREAKDOWN ===
+        mainData.push(['DAILY PRODUCTION BREAKDOWN']);
+
+        // Collect and sort dates
+        const allDates = new Set();
+        reportData.products.forEach(product => {
             product.entries.forEach(entry => {
-                const date = new Date(entry.date);
-                excelData.push([
-                    date.toLocaleDateString(),
-                    entry.morningCount,
-                    entry.eveningCount,
+                allDates.add(new Date(entry.date).toLocaleDateString('en-GB'));
+            });
+        });
+
+        const sortedDates = Array.from(allDates).sort((a, b) => {
+            const [dayA, monthA, yearA] = a.split('/');
+            const [dayB, monthB, yearB] = b.split('/');
+            return new Date(yearA, monthA - 1, dayA) - new Date(yearB, monthB - 1, dayB);
+        });
+
+        // Daily table header
+        const dailyHeader = ['Date'];
+        reportData.products.forEach(p => dailyHeader.push(p.productName));
+        dailyHeader.push('DAILY TOTAL');
+        mainData.push(dailyHeader);
+
+        // Daily table rows
+        sortedDates.forEach(dateStr => {
+            const row = [dateStr];
+            let dailyTotal = 0;
+
+            reportData.products.forEach(product => {
+                const entry = product.entries.find(e =>
+                    new Date(e.date).toLocaleDateString('en-GB') === dateStr
+                );
+                const count = entry ? entry.dailyTotal : 0;
+                row.push(count);
+                dailyTotal += count;
+            });
+
+            row.push(dailyTotal);
+            mainData.push(row);
+        });
+
+        // Daily totals row
+        const dailyTotals = ['TOTAL'];
+        reportData.products.forEach(p => dailyTotals.push(p.totalProduced));
+        dailyTotals.push(totalProduced);
+        mainData.push(dailyTotals);
+        mainData.push([]);
+        mainData.push([]);
+
+        // === DETAILED SHIFT-WISE BREAKDOWN ===
+        mainData.push(['DETAILED SHIFT-WISE BREAKDOWN']);
+        mainData.push([]);
+
+        reportData.products.forEach((product, index) => {
+            if (index > 0) mainData.push([]);
+
+            mainData.push([`${product.productName} - Target: ${product.monthlyTarget} | Produced: ${product.totalProduced} | Remaining: ${product.remainingTarget}`]);
+            mainData.push(['Date', 'Morning', 'Evening', 'Late Night', 'Daily Total', 'Entered By']);
+
+            product.entries.forEach(entry => {
+                mainData.push([
+                    new Date(entry.date).toLocaleDateString('en-GB'),
+                    entry.morningCount || 0,
+                    entry.eveningCount || 0,
+                    entry.lateNightCount || 0,
                     entry.dailyTotal,
                     entry.enteredBy
                 ]);
             });
-
-            excelData.push([]); // Empty row between products
-            excelData.push([]); // Extra empty row
         });
 
-        // Create workbook and worksheet
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.aoa_to_sheet(excelData);
+        // Create worksheet
+        const ws = XLSX.utils.aoa_to_sheet(mainData);
 
         // Set column widths
         ws['!cols'] = [
-            { wch: 15 }, // Date
-            { wch: 15 }, // Morning Count
-            { wch: 15 }, // Evening Count
-            { wch: 12 }, // Daily Total
-            { wch: 20 }  // Entered By
+            { wch: 15 },  // Col A
+            { wch: 15 },  // Col B
+            { wch: 15 },  // Col C
+            { wch: 15 },  // Col D
+            { wch: 12 },  // Col E
+            { wch: 18 }   // Col F
         ];
 
-        // Add worksheet to workbook
-        XLSX.utils.book_append_sheet(wb, ws, 'Monthly Report');
+        XLSX.utils.book_append_sheet(wb, ws, 'Production Report');
 
         // Generate filename
         const monthName = months.find(m => m.value === selectedMonth.toString())?.label;
@@ -282,16 +349,31 @@ function ReportsContent() {
                 {/* Report Display */}
                 {reportData && (
                     <div className="space-y-6">
-                        <div className="bg-white rounded-lg shadow-md p-6">
-                            <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                                Report for {getMonthName(reportData.month)} {reportData.year}
+                        {/* Header Summary */}
+                        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-lg p-6 text-white">
+                            <h2 className="text-3xl font-bold mb-2">
+                                📊 Monthly Production Report
                             </h2>
-                            <p className="text-gray-600 mb-1">
-                                Date Range: {new Date(startDate).toLocaleDateString()} - {new Date(endDate).toLocaleDateString()}
-                            </p>
-                            <p className="text-gray-600">
-                                Total Products: {reportData.products.length}
-                            </p>
+                            <div className="flex flex-wrap gap-6 text-blue-100">
+                                <div>
+                                    <span className="text-sm">Period:</span>
+                                    <span className="ml-2 font-semibold text-white">
+                                        {getMonthName(reportData.month)} {reportData.year}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="text-sm">Date Range:</span>
+                                    <span className="ml-2 font-semibold text-white">
+                                        {new Date(startDate).toLocaleDateString('en-GB')} - {new Date(endDate).toLocaleDateString('en-GB')}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="text-sm">Total Products:</span>
+                                    <span className="ml-2 font-semibold text-white">
+                                        {reportData.products.length}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
 
                         {reportData.products.length === 0 ? (
@@ -301,115 +383,167 @@ function ReportsContent() {
                                 </p>
                             </div>
                         ) : (
-                            reportData.products.map((product, index) => (
-                                <div key={index} className="bg-white rounded-lg shadow-md overflow-hidden">
-                                    {/* Product Summary */}
-                                    <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6">
-                                        <h3 className="text-2xl font-bold mb-4">{product.productName}</h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div>
-                                                <p className="text-blue-100 text-sm">Monthly Target</p>
-                                                <p className="text-3xl font-bold">{product.monthlyTarget}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-blue-100 text-sm">Total Produced</p>
-                                                <p className="text-3xl font-bold">{product.totalProduced}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-blue-100 text-sm">Remaining Target</p>
-                                                <p className={`text-3xl font-bold ${product.remainingTarget === 0 ? 'text-green-300' : 'text-yellow-300'
-                                                    }`}>
-                                                    {product.remainingTarget}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        {/* Progress Bar */}
-                                        <div className="mt-4">
-                                            <div className="bg-blue-400 rounded-full h-3 overflow-hidden">
-                                                <div
-                                                    className="bg-white h-full rounded-full transition-all duration-500"
-                                                    style={{
-                                                        width: `${Math.min(100, (product.totalProduced / product.monthlyTarget) * 100)}%`
-                                                    }}
-                                                />
-                                            </div>
-                                            <p className="text-blue-100 text-sm mt-1">
-                                                {((product.totalProduced / product.monthlyTarget) * 100).toFixed(1)}% Complete
-                                            </p>
-                                        </div>
+                            <>
+                                {/* Summary Table */}
+                                <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                                    <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4">
+                                        <h3 className="text-xl font-bold text-white">Production Summary</h3>
                                     </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead className="bg-gray-100">
+                                                <tr>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Product</th>
+                                                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase">Target</th>
+                                                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase">Produced</th>
+                                                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase">Remaining</th>
+                                                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase">Progress</th>
+                                                    <th className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-200">
+                                                {reportData.products.map((product, idx) => {
+                                                    const progress = ((product.totalProduced / product.monthlyTarget) * 100).toFixed(1);
+                                                    const status = product.remainingTarget <= 0 ? 'COMPLETED' :
+                                                        product.remainingTarget < product.monthlyTarget * 0.2 ? 'NEAR COMPLETION' :
+                                                            'IN PROGRESS';
+                                                    const statusColor = product.remainingTarget <= 0 ? 'text-green-600 bg-green-100' :
+                                                        product.remainingTarget < product.monthlyTarget * 0.2 ? 'text-orange-600 bg-orange-100' :
+                                                            'text-blue-600 bg-blue-100';
 
-                                    {/* Daily Entries Table */}
-                                    <div className="p-6">
-                                        <h4 className="text-lg font-semibold mb-3 text-gray-700">Daily Breakdown</h4>
-
-                                        {product.entries.length === 0 ? (
-                                            <p className="text-gray-500 text-center py-4">No entries for this product</p>
-                                        ) : (
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full">
-                                                    <thead className="bg-gray-50">
-                                                        <tr>
-                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                                                Date
-                                                            </th>
-                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                                                Morning
-                                                            </th>
-                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                                                Evening
-                                                            </th>
-                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                                                Daily Total
-                                                            </th>
-                                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                                                Entered By
-                                                            </th>
+                                                    return (
+                                                        <tr key={idx} className="hover:bg-gray-50">
+                                                            <td className="px-4 py-3 text-sm font-semibold text-gray-900">{product.productName}</td>
+                                                            <td className="px-4 py-3 text-sm text-center text-gray-700">{product.monthlyTarget}</td>
+                                                            <td className="px-4 py-3 text-sm text-center font-semibold text-blue-600">{product.totalProduced}</td>
+                                                            <td className="px-4 py-3 text-sm text-center">
+                                                                <span className={`font-semibold ${product.remainingTarget <= 0 ? 'text-green-600' : 'text-orange-600'}`}>
+                                                                    {product.remainingTarget}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-sm text-center">
+                                                                <div className="flex items-center justify-center gap-2">
+                                                                    <div className="w-20 bg-gray-200 rounded-full h-2">
+                                                                        <div
+                                                                            className="bg-blue-600 h-2 rounded-full"
+                                                                            style={{ width: `${Math.min(100, progress)}%` }}
+                                                                        ></div>
+                                                                    </div>
+                                                                    <span className="text-xs font-semibold text-gray-600">{progress}%</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-center">
+                                                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColor}`}>
+                                                                    {status}
+                                                                </span>
+                                                            </td>
                                                         </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-gray-200">
-                                                        {product.entries.map((entry, idx) => (
-                                                            <tr key={idx} className="hover:bg-gray-50">
-                                                                <td className="px-4 py-3 text-sm text-gray-900">
-                                                                    {new Date(entry.date).toLocaleDateString()}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-sm text-gray-700">
-                                                                    {entry.morningCount}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-sm text-gray-700">
-                                                                    {entry.eveningCount}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-sm font-semibold text-blue-600">
-                                                                    {entry.dailyTotal}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-sm text-gray-600">
-                                                                    {entry.enteredBy}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                    <tfoot className="bg-gray-50 font-semibold">
-                                                        <tr>
-                                                            <td className="px-4 py-3 text-sm text-gray-900">TOTAL</td>
-                                                            <td className="px-4 py-3 text-sm text-gray-900">
-                                                                {product.entries.reduce((sum, e) => sum + e.morningCount, 0)}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-sm text-gray-900">
-                                                                {product.entries.reduce((sum, e) => sum + e.eveningCount, 0)}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-sm text-blue-600">
-                                                                {product.totalProduced}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-sm text-gray-900">-</td>
-                                                        </tr>
-                                                    </tfoot>
-                                                </table>
-                                            </div>
-                                        )}
+                                                    );
+                                                })}
+                                            </tbody>
+                                            <tfoot className="bg-gray-100 font-bold">
+                                                <tr>
+                                                    <td className="px-4 py-3 text-sm text-gray-900">TOTAL</td>
+                                                    <td className="px-4 py-3 text-sm text-center text-gray-900">
+                                                        {reportData.products.reduce((sum, p) => sum + p.monthlyTarget, 0)}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-center text-blue-600">
+                                                        {reportData.products.reduce((sum, p) => sum + p.totalProduced, 0)}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-center text-orange-600">
+                                                        {reportData.products.reduce((sum, p) => sum + p.remainingTarget, 0)}
+                                                    </td>
+                                                    <td colSpan="2" className="px-4 py-3 text-sm text-center text-gray-700">
+                                                        {(
+                                                            (reportData.products.reduce((sum, p) => sum + p.totalProduced, 0) /
+                                                                reportData.products.reduce((sum, p) => sum + p.monthlyTarget, 0)) * 100
+                                                        ).toFixed(1)}% Overall Progress
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
                                     </div>
                                 </div>
-                            ))
+
+                                {/* Daily Production Table */}
+                                <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                                    <div className="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4">
+                                        <h3 className="text-xl font-bold text-white">Daily Production Breakdown</h3>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead className="bg-gray-100">
+                                                <tr>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase sticky left-0 bg-gray-100">Date</th>
+                                                    {reportData.products.map((product, idx) => (
+                                                        <th key={idx} className="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase">
+                                                            {product.productName}
+                                                        </th>
+                                                    ))}
+                                                    <th className="px-4 py-3 text-center text-xs font-bold text-blue-700 uppercase bg-blue-50">Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-200">
+                                                {(() => {
+                                                    // Collect all unique dates
+                                                    const allDates = new Set();
+                                                    reportData.products.forEach(product => {
+                                                        product.entries.forEach(entry => {
+                                                            allDates.add(new Date(entry.date).toLocaleDateString('en-GB'));
+                                                        });
+                                                    });
+
+                                                    // Sort dates
+                                                    const sortedDates = Array.from(allDates).sort((a, b) => {
+                                                        const [dayA, monthA, yearA] = a.split('/');
+                                                        const [dayB, monthB, yearB] = b.split('/');
+                                                        return new Date(yearA, monthA - 1, dayA) - new Date(yearB, monthB - 1, dayB);
+                                                    });
+
+                                                    return sortedDates.map((dateStr, dateIdx) => {
+                                                        let dailyTotal = 0;
+                                                        return (
+                                                            <tr key={dateIdx} className="hover:bg-gray-50">
+                                                                <td className="px-4 py-3 text-sm font-medium text-gray-900 sticky left-0 bg-white">
+                                                                    {dateStr}
+                                                                </td>
+                                                                {reportData.products.map((product, prodIdx) => {
+                                                                    const entry = product.entries.find(e =>
+                                                                        new Date(e.date).toLocaleDateString('en-GB') === dateStr
+                                                                    );
+                                                                    const count = entry ? entry.dailyTotal : 0;
+                                                                    dailyTotal += count;
+                                                                    return (
+                                                                        <td key={prodIdx} className="px-4 py-3 text-sm text-center text-gray-700">
+                                                                            {count > 0 ? count : '-'}
+                                                                        </td>
+                                                                    );
+                                                                })}
+                                                                <td className="px-4 py-3 text-sm text-center font-bold text-blue-600 bg-blue-50">
+                                                                    {dailyTotal}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    });
+                                                })()}
+                                            </tbody>
+                                            <tfoot className="bg-gray-100 font-bold">
+                                                <tr>
+                                                    <td className="px-4 py-3 text-sm text-gray-900 sticky left-0 bg-gray-100">TOTAL</td>
+                                                    {reportData.products.map((product, idx) => (
+                                                        <td key={idx} className="px-4 py-3 text-sm text-center text-gray-900">
+                                                            {product.totalProduced}
+                                                        </td>
+                                                    ))}
+                                                    <td className="px-4 py-3 text-sm text-center text-blue-600 bg-blue-50">
+                                                        {reportData.products.reduce((sum, p) => sum + p.totalProduced, 0)}
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+                            </>
                         )}
                     </div>
                 )}
