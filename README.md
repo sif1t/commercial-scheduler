@@ -4,7 +4,7 @@ A full-stack application for managing commercial products, tracking daily produc
 
 ## Tech Stack
 
-- **Backend:** Node.js, Express, MongoDB, Mongoose
+- **Backend:** Node.js, Express, Supabase (PostgreSQL)
 - **Frontend:** Next.js 14 (App Router), React, Tailwind CSS
 - **Export:** XLSX library for Excel exports
 
@@ -22,9 +22,10 @@ A full-stack application for managing commercial products, tracking daily produc
 ```
 commercial-scheduler/
 ├── backend/
-│   ├── models/
-│   │   ├── Product.js          # Product schema
-│   │   └── DailyEntry.js       # Daily entry schema
+│   ├── db/
+│   │   └── supabase-schema.sql # Supabase table + trigger schema
+│   ├── lib/
+│   │   └── supabase.js         # Supabase client
 │   ├── server.js               # Express server with API routes
 │   ├── package.json
 │   └── .env.example
@@ -65,13 +66,18 @@ commercial-scheduler/
    cp .env.example .env
    ```
 
-4. Update `.env` with your MongoDB connection string:
+4. Update `.env` with your Supabase credentials:
    ```
    PORT=5000
-   MONGODB_URI=mongodb://localhost:27017/commercial-scheduler
+   SUPABASE_URL=https://your-project-ref.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+   JWT_SECRET=your-super-secret-jwt-key-change-this-in-production-min-32-chars
+   JWT_EXPIRES_IN=7d
    ```
 
-5. Start the server:
+5. Create tables in Supabase SQL Editor using [backend/db/supabase-schema.sql](backend/db/supabase-schema.sql).
+
+6. Start the server:
    ```bash
    npm run dev
    ```
@@ -171,7 +177,10 @@ Uses the `xlsx` library to generate Excel files with:
 ### Backend (.env)
 ```
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/commercial-scheduler
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production-min-32-chars
+JWT_EXPIRES_IN=7d
 ```
 
 ### Frontend (.env.local)
@@ -182,8 +191,9 @@ NEXT_PUBLIC_API_URL=http://localhost:5000
 ## Production Deployment
 
 ### Backend
-1. Set up MongoDB (Atlas or self-hosted)
-2. Update `MONGODB_URI` in production environment
+1. Create a Supabase project
+2. Run [backend/db/supabase-schema.sql](backend/db/supabase-schema.sql) in SQL Editor
+3. Update `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in production environment
 3. Deploy to your preferred platform (Heroku, Railway, AWS, etc.)
 
 ### Frontend

@@ -1,50 +1,43 @@
 // backend/test-login.js
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 require('dotenv').config();
+const bcrypt = require('bcryptjs');
 
-const User = require('./models/User');
+const { supabase } = require('./lib/supabase');
 
 const testEmail = 'ali@gmail.com';
-const testPassword = 'Ali@12345'; // Change this to your actual password
+const testPassword = 'Ali@12345';
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/commercial-scheduler')
-    .then(async () => {
-        console.log('✅ Connected to MongoDB\n');
+const run = async () => {
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('id, name, email, role, team, is_active, password')
+            .eq('email', testEmail.toLowerCase().trim())
+            .maybeSingle();
 
-        const user = await User.findOne({ email: testEmail }).select('+password');
+        if (error) {
+            throw error;
+        }
 
         if (!user) {
-            console.log(`❌ User ${testEmail} not found in datab    ase`);
-            console.log('\nPlease register first at: http://localhost:3001/register');
+            console.log(`User ${testEmail} not found in database`);
             process.exit(1);
         }
 
-        console.log(`✅ User found: ${user.name}`);
+        console.log(`User found: ${user.name}`);
         console.log(`   Email: ${user.email}`);
         console.log(`   Role: ${user.role}`);
-        console.log(`   Active: ${user.isActive}`);
-        console.log(`   Locked: ${user.isLocked()}`);
-        console.log(`   Login Attempts: ${user.loginAttempts}`);
+        console.log(`   Team: ${user.team}`);
+        console.log(`   Active: ${user.is_active}`);
 
-        // Test password
-        const isMatch = await user.comparePassword(testPassword);
-        console.log(`\n🔐 Password '${testPassword}' matches: ${isMatch ? '✅ YES' : '❌ NO'}`);
-
-        if (!isMatch) {
-            console.log('\n⚠️  Password does not match!');
-            console.log('   This is why login is failing.');
-            console.log('\n   Solutions:');
-            console.log('   1. Use the correct password you registered with');
-            console.log('   2. Reset the password in MongoDB if forgotten');
-            console.log('   3. Register a new account');
-        } else {
-            console.log('\n✅ Login should work with these credentials!');
-        }
+        const isMatch = await bcrypt.compare(testPassword, user.password);
+        console.log(`\nPassword '${testPassword}' matches: ${isMatch ? 'YES' : 'NO'}`);
 
         process.exit(0);
-    })
-    .catch(err => {
-        console.error('❌ Error:', err.message);
+    } catch (err) {
+        console.error('Error:', err.message);
         process.exit(1);
-    });
+    }
+};
+
+run();

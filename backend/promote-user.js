@@ -1,41 +1,63 @@
 // backend/promote-user.js
-const mongoose = require('mongoose');
 require('dotenv').config();
-
-const User = require('./models/User');
+const { supabase } = require('./lib/supabase');
 
 // Change this to the email of the user you want to promote
 const userEmail = 'arifeen.sifat@gmail.com'; // CHANGE THIS
 const newRole = 'superAdmin'; // Options: 'user', 'admin', 'superAdmin'
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/commercial-scheduler')
-    .then(async () => {
-        console.log('✅ Connected to MongoDB\n');
+const run = async () => {
+    try {
+        const normalizedEmail = userEmail.toLowerCase().trim();
 
-        const user = await User.findOne({ email: userEmail });
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('id, name, email, role')
+            .eq('email', normalizedEmail)
+            .maybeSingle();
+
+        if (userError) {
+            throw userError;
+        }
 
         if (!user) {
             console.log(`❌ User with email "${userEmail}" not found\n`);
             console.log('Available users:');
-            const allUsers = await User.find();
-            allUsers.forEach(u => console.log(`  - ${u.email} (${u.role})`));
+            const { data: allUsers, error: allUsersError } = await supabase
+                .from('users')
+                .select('email, role')
+                .order('email', { ascending: true });
+
+            if (allUsersError) {
+                throw allUsersError;
+            }
+
+            (allUsers || []).forEach(u => console.log(`  - ${u.email} (${u.role})`));
             process.exit(1);
         }
 
         const oldRole = user.role;
-        user.role = newRole;
-        await user.save();
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({ role: newRole })
+            .eq('id', user.id);
+
+        if (updateError) {
+            throw updateError;
+        }
 
         console.log('🎉 User role updated successfully!\n');
         console.log(`   Name: ${user.name}`);
         console.log(`   Email: ${user.email}`);
         console.log(`   Old Role: ${oldRole}`);
-        console.log(`   New Role: ${user.role}\n`);
+        console.log(`   New Role: ${newRole}\n`);
         console.log('✅ User must log out and log back in for changes to take effect.\n');
 
         process.exit(0);
-    })
-    .catch(err => {
+    } catch (err) {
         console.error('❌ Error:', err.message);
         process.exit(1);
-    });
+    }
+};
+
+run();

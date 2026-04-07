@@ -4,32 +4,18 @@
 
 For security reasons, all new user registrations default to the **User** role. To set up your first SuperAdmin account, follow these steps:
 
-### Option 1: Using MongoDB Compass or mongosh
+### Option 1: Using Supabase Dashboard SQL Editor
 
 1. **Register a new account** through the website (it will be created as a regular User)
 
-2. **Open MongoDB Compass** or use `mongosh` to connect to your database
+2. **Open Supabase Dashboard** and go to **SQL Editor**
 
-3. **Navigate to your database** (default: `commercial-scheduler`)
-
-4. **Find the Users collection** and locate your user by email
-
-5. **Update the role field** to `superAdmin`:
-
-   **Using MongoDB Compass:**
-   - Click on your user document
-   - Find the `role` field
-   - Change the value from `"user"` to `"superAdmin"`
-   - Click Update
-
-   **Using mongosh:**
-   ```javascript
-   use commercial-scheduler
-   db.users.updateOne(
-     { email: "your-email@example.com" },
-     { $set: { role: "superAdmin" } }
-   )
-   ```
+3. **Run this SQL** to promote your user:
+  ```sql
+  update public.users
+  set role = 'superAdmin'
+  where email = 'your-email@example.com';
+  ```
 
 6. **Log out and log back in** to the application for changes to take effect
 
@@ -37,48 +23,12 @@ For security reasons, all new user registrations default to the **User** role. T
 
 8. **Promote other users** as needed through the web interface
 
-### Option 2: Direct Database Script (Recommended for First Setup)
-
-Create a file called `setup-admin.js`:
-
-```javascript
-// setup-admin.js
-const mongoose = require('mongoose');
-require('dotenv').config();
-
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/commercial-scheduler')
-  .then(async () => {
-    console.log('Connected to MongoDB');
-    
-    const User = require('./models/User');
-    
-    // Change this to the email of the user you want to make SuperAdmin
-    const email = 'your-email@example.com';
-    
-    const user = await User.findOneAndUpdate(
-      { email },
-      { role: 'superAdmin' },
-      { new: true }
-    );
-    
-    if (user) {
-      console.log(`✅ Successfully promoted ${user.name} (${user.email}) to SuperAdmin`);
-    } else {
-      console.log(`❌ User with email ${email} not found. Please register first.`);
-    }
-    
-    process.exit(0);
-  })
-  .catch(err => {
-    console.error('Error:', err);
-    process.exit(1);
-  });
-```
+### Option 2: Built-in Script (Recommended for First Setup)
 
 Run it from the backend directory:
 ```bash
 cd backend
-node setup-admin.js
+node setup-first-admin.js your-email@example.com
 ```
 
 ## 🛡️ Security Features
@@ -135,8 +85,9 @@ Once you have SuperAdmin access:
 Ensure your `.env` file is properly configured:
 
 ```env
-# MongoDB Connection
-MONGODB_URI=mongodb://localhost:27017/commercial-scheduler
+# Supabase Configuration
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 
 # JWT Configuration
 JWT_SECRET=your-super-secret-key-change-this-in-production
@@ -149,7 +100,7 @@ PORT=5000
 ## 📞 Support
 
 For issues or questions about user management and security:
-- Check MongoDB connection
-- Verify user exists in database
+- Check Supabase credentials and table schema
+- Verify user exists in public.users table
 - Ensure JWT_SECRET is configured
 - Review server logs for authentication errors

@@ -1,50 +1,55 @@
 // backend/fix-user-and-password.js
-const mongoose = require('mongoose');
 require('dotenv').config();
+const bcrypt = require('bcryptjs');
+
+const { supabase } = require('./lib/supabase');
 
 const userEmail = 'ali@gmail.com';
-const newPassword = 'Ali@12345'; // Strong password
+const newPassword = 'Ali@12345';
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/commercial-scheduler')
-    .then(async () => {
-        console.log('✅ Connected to MongoDB\n');
+const run = async () => {
+    try {
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('id, name, email')
+            .eq('email', userEmail.toLowerCase().trim())
+            .maybeSingle();
 
-        // First, fix the role directly in MongoDB (bypass validation)
-        const result = await mongoose.connection.collection('users').updateOne(
-            { email: userEmail },
-            {
-                $set: {
-                    role: 'superAdmin',  // Fix the role
-                    loginAttempts: 0,    // Reset login attempts
-                    lockUntil: null      // Remove lock
-                }
-            }
-        );
+        if (userError) {
+            throw userError;
+        }
 
-        if (result.matchedCount === 0) {
-            console.log(`❌ User ${userEmail} not found`);
+        if (!user) {
+            console.log(`User ${userEmail} not found`);
             process.exit(1);
         }
 
-        console.log('✅ Fixed user role to: superAdmin\n');
+        const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-        // Now update the password using the model (for bcrypt hashing)
-        const User = require('./models/User');
-        const user = await User.findOne({ email: userEmail });
-        user.password = newPassword;
-        await user.save();
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({
+                role: 'superAdmin',
+                password: hashedPassword,
+                is_active: true,
+                password_changed_at: new Date().toISOString()
+            })
+            .eq('id', user.id);
 
-        console.log('🎉 Password and role updated successfully!\n');
+        if (updateError) {
+            throw updateError;
+        }
+
+        console.log('Password and role updated successfully');
         console.log(`   Name: ${user.name}`);
         console.log(`   Email: ${user.email}`);
-        console.log(`   Role: ${user.role}`);
-        console.log(`   Password: ${newPassword}`);
-        console.log(`\n✅ Login now at: http://localhost:3001/login\n`);
+        console.log('   Role: superAdmin');
 
         process.exit(0);
-    })
-    .catch(err => {
-        console.error('❌ Error:', err.message);
-        console.error(err);
+    } catch (err) {
+        console.error('Error:', err.message);
         process.exit(1);
-    });
+    }
+};
+
+run();

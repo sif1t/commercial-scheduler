@@ -1,7 +1,7 @@
 // backend/middleware/auth.js
 
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { supabase } = require('../lib/supabase');
 
 /**
  * Protect middleware - Authenticates user via JWT token
@@ -49,7 +49,15 @@ exports.protect = async (req, res, next) => {
         }
 
         // 3. Check if user exists (don't select password unless needed)
-        const user = await User.findById(decoded.id);
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('id, name, email, role, team, is_active, password_changed_at')
+            .eq('id', decoded.id)
+            .maybeSingle();
+
+        if (userError) {
+            throw userError;
+        }
 
         if (!user) {
             return res.status(401).json({
@@ -59,7 +67,7 @@ exports.protect = async (req, res, next) => {
         }
 
         // 4. Check if user account is active
-        if (user.isActive === false) {
+        if (user.is_active === false) {
             return res.status(403).json({
                 success: false,
                 error: 'Your account has been deactivated. Contact administrator.'
@@ -67,8 +75,8 @@ exports.protect = async (req, res, next) => {
         }
 
         // 5. Check if password was changed after token was issued
-        if (user.passwordChangedAt) {
-            const passwordChangedTimestamp = parseInt(user.passwordChangedAt.getTime() / 1000, 10);
+        if (user.password_changed_at) {
+            const passwordChangedTimestamp = parseInt(new Date(user.password_changed_at).getTime() / 1000, 10);
             if (decoded.iat < passwordChangedTimestamp) {
                 return res.status(401).json({
                     success: false,
@@ -79,12 +87,12 @@ exports.protect = async (req, res, next) => {
 
         // 6. Attach user to request object (excluding sensitive data)
         req.user = {
-            id: user._id,
+            id: user.id,
             name: user.name,
             email: user.email,
             role: user.role,
             team: user.team,
-            isActive: user.isActive
+            isActive: user.is_active
         };
 
         next();
@@ -140,16 +148,20 @@ exports.optionalAuth = async (req, res, next) => {
             if (token && token !== 'null' && token !== 'undefined') {
                 try {
                     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
-                    const user = await User.findById(decoded.id);
+                    const { data: user } = await supabase
+                        .from('users')
+                        .select('id, name, email, role, team, is_active')
+                        .eq('id', decoded.id)
+                        .maybeSingle();
 
-                    if (user && user.isActive) {
+                    if (user && user.is_active) {
                         req.user = {
-                            id: user._id,
+                            id: user.id,
                             name: user.name,
                             email: user.email,
                             role: user.role,
                             team: user.team,
-                            isActive: user.isActive
+                            isActive: user.is_active
                         };
                     }
                 } catch (err) {

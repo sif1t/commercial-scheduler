@@ -2,10 +2,8 @@
 // Run this script to promote your first user to SuperAdmin
 // Usage: node setup-first-admin.js your-email@example.com
 
-const mongoose = require('mongoose');
 require('dotenv').config();
-
-const User = require('./models/User');
+const { supabase } = require('./lib/supabase');
 
 const setupFirstAdmin = async () => {
     try {
@@ -18,12 +16,16 @@ const setupFirstAdmin = async () => {
             process.exit(1);
         }
 
-        // Connect to MongoDB
-        await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/commercial-scheduler');
-        console.log('✅ Connected to MongoDB\n');
-
         // Check if user exists
-        const user = await User.findOne({ email });
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('id, name, email, role')
+            .eq('email', email.toLowerCase().trim())
+            .maybeSingle();
+
+        if (userError) {
+            throw userError;
+        }
 
         if (!user) {
             console.log(`❌ User with email "${email}" not found`);
@@ -40,13 +42,19 @@ const setupFirstAdmin = async () => {
         }
 
         // Update to SuperAdmin
-        user.role = 'superAdmin';
-        await user.save();
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({ role: 'superAdmin' })
+            .eq('id', user.id);
+
+        if (updateError) {
+            throw updateError;
+        }
 
         console.log('🎉 SUCCESS! User promoted to SuperAdmin:\n');
         console.log(`   Name:  ${user.name}`);
         console.log(`   Email: ${user.email}`);
-        console.log(`   Role:  ${user.role}\n`);
+        console.log('   Role:  superAdmin\n');
         console.log('✅ You can now:');
         console.log('   1. Log out and log back in to the application');
         console.log('   2. Access the "👥 Users" menu in the navigation');

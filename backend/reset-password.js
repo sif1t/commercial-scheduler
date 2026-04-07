@@ -1,41 +1,53 @@
 // backend/reset-password.js
-const mongoose = require('mongoose');
 require('dotenv').config();
+const bcrypt = require('bcryptjs');
 
-const User = require('./models/User');
+const { supabase } = require('./lib/supabase');
 
-// Change these to your desired credentials
 const userEmail = 'ali@gmail.com';
-const newPassword = 'Ali@12345'; // Strong password with uppercase, lowercase, number, special char
+const newPassword = 'Ali@12345';
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/commercial-scheduler')
-    .then(async () => {
-        console.log('✅ Connected to MongoDB\n');
+const run = async () => {
+    try {
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('id, name, email')
+            .eq('email', userEmail.toLowerCase().trim())
+            .maybeSingle();
 
-        const user = await User.findOne({ email: userEmail });
+        if (userError) {
+            throw userError;
+        }
 
         if (!user) {
-            console.log(`❌ User ${userEmail} not found`);
+            console.log(`User ${userEmail} not found`);
             process.exit(1);
         }
 
-        // Update password (will be hashed automatically by the pre-save hook)
-        user.password = newPassword;
-        user.loginAttempts = 0; // Reset failed login attempts
-        user.lockUntil = undefined; // Remove any account lock
-        await user.save();
+        const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-        console.log('🎉 Password reset successfully!\n');
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({
+                password: hashedPassword,
+                password_changed_at: new Date().toISOString()
+            })
+            .eq('id', user.id);
+
+        if (updateError) {
+            throw updateError;
+        }
+
+        console.log('Password reset successfully');
         console.log(`   User: ${user.name}`);
         console.log(`   Email: ${user.email}`);
         console.log(`   New Password: ${newPassword}`);
-        console.log(`\n✅ You can now login at: http://localhost:3001/login`);
-        console.log(`   Email: ${user.email}`);
-        console.log(`   Password: ${newPassword}\n`);
 
         process.exit(0);
-    })
-    .catch(err => {
-        console.error('❌ Error:', err.message);
+    } catch (err) {
+        console.error('Error:', err.message);
         process.exit(1);
-    });
+    }
+};
+
+run();
