@@ -5,6 +5,7 @@ create extension if not exists pgcrypto;
 
 create table if not exists public.users (
     id uuid primary key default gen_random_uuid(),
+    auth_user_id uuid unique,
     name text not null,
     email text not null unique,
     password text not null,
@@ -16,6 +17,9 @@ create table if not exists public.users (
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
+
+alter table public.users
+add column if not exists auth_user_id uuid unique;
 
 create table if not exists public.products (
     id uuid primary key default gen_random_uuid(),

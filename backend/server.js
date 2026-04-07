@@ -116,9 +116,27 @@ app.post('/api/auth/register', async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 12);
 
+        const { data: authUser, error: authCreateError } = await supabase.auth.admin.createUser({
+            email: normalizedEmail,
+            password,
+            email_confirm: true,
+            user_metadata: {
+                name: name.trim(),
+                team
+            }
+        });
+
+        if (authCreateError) {
+            if (authCreateError.message && authCreateError.message.includes('already registered')) {
+                return res.status(400).json({ error: 'Email already registered' });
+            }
+            throw authCreateError;
+        }
+
         const { data: user, error: insertError } = await supabase
             .from('users')
             .insert({
+                auth_user_id: authUser.user.id,
                 name: name.trim(),
                 email: normalizedEmail,
                 password: hashedPassword,
@@ -130,6 +148,7 @@ app.post('/api/auth/register', async (req, res) => {
             .single();
 
         if (insertError) {
+            await supabase.auth.admin.deleteUser(authUser.user.id);
             if (insertError.code === '23505') {
                 return res.status(400).json({ error: 'Email already registered' });
             }
@@ -285,6 +304,16 @@ app.put('/api/auth/profile', protect, async (req, res) => {
             updateData.email = normalizedEmail;
         }
 
+        const { data: currentUser, error: currentUserError } = await supabase
+            .from('users')
+            .select('id, auth_user_id, email')
+            .eq('id', req.user.id)
+            .maybeSingle();
+
+        if (currentUserError) {
+            throw currentUserError;
+        }
+
         const { data: user, error: updateError } = await supabase
             .from('users')
             .update(updateData)
@@ -298,6 +327,16 @@ app.put('/api/auth/profile', protect, async (req, res) => {
 
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (currentUser?.auth_user_id && email) {
+            const { error: authUpdateError } = await supabase.auth.admin.updateUserById(currentUser.auth_user_id, {
+                email: updateData.email
+            });
+
+            if (authUpdateError) {
+                throw authUpdateError;
+            }
         }
 
         res.json({
@@ -334,7 +373,7 @@ app.put('/api/auth/change-password', protect, async (req, res) => {
 
         const { data: user, error: userError } = await supabase
             .from('users')
-            .select('id, password')
+            .select('id, password, auth_user_id')
             .eq('id', req.user.id)
             .maybeSingle();
 
@@ -363,6 +402,16 @@ app.put('/api/auth/change-password', protect, async (req, res) => {
 
         if (updateError) {
             throw updateError;
+        }
+
+        if (user.auth_user_id) {
+            const { error: authUpdateError } = await supabase.auth.admin.updateUserById(user.auth_user_id, {
+                password: newPassword
+            });
+
+            if (authUpdateError) {
+                throw authUpdateError;
+            }
         }
 
         const token = generateToken(req.user.id);
