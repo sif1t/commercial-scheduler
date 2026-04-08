@@ -9,6 +9,8 @@ function DailySheetContent() {
     const { user } = useAuth();
     const [products, setProducts] = useState([]);
     const [entries, setEntries] = useState({});
+    const [noteEntries, setNoteEntries] = useState({});
+    const [savingNotes, setSavingNotes] = useState({});
     const [currentShift, setCurrentShift] = useState('');
     const [currentTime, setCurrentTime] = useState('');
     const [loading, setLoading] = useState(false);
@@ -16,6 +18,7 @@ function DailySheetContent() {
     const userName = user?.name || '';
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const canEditBrandNote = user?.role === 'superAdmin' || user?.role === 'admin';
 
     // Get current time in Bangladesh (UTC+6)
     const getBangladeshTime = () => {
@@ -134,6 +137,65 @@ function DailySheetContent() {
             ...entries,
             [key]: numValue
         });
+    };
+
+    const handleNoteChange = (productId, value) => {
+        setNoteEntries({
+            ...noteEntries,
+            [productId]: value
+        });
+    };
+
+    const handleSaveNote = async (productId) => {
+        if (!canEditBrandNote) {
+            return;
+        }
+
+        const noteToSave = (noteEntries[productId] || '').trim();
+
+        setSavingNotes((prev) => ({
+            ...prev,
+            [productId]: true
+        }));
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/api/products/${productId}/brand-note`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ brandNote: noteToSave })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to update note');
+            }
+
+            setProducts((prevProducts) => prevProducts.map((product) => (
+                product._id === productId
+                    ? { ...product, brandNote: data.product?.brandNote || noteToSave }
+                    : product
+            )));
+
+            setNoteEntries((prev) => ({
+                ...prev,
+                [productId]: data.product?.brandNote || noteToSave
+            }));
+
+            alert('Brand note updated successfully');
+        } catch (error) {
+            console.error('Error updating brand note:', error);
+            alert(error.message || 'Failed to update note');
+        } finally {
+            setSavingNotes((prev) => ({
+                ...prev,
+                [productId]: false
+            }));
+        }
     };
 
     const handleSubmit = async (productId) => {
@@ -446,6 +508,9 @@ function DailySheetContent() {
                                         Late Night Count
                                     </th>
                                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Note
+                                    </th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Action
                                     </th>
                                 </tr>
@@ -453,7 +518,7 @@ function DailySheetContent() {
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {products.length === 0 ? (
                                     <tr>
-                                        <td colSpan="10" className="px-3 py-4 text-center text-gray-500 text-sm">
+                                        <td colSpan="11" className="px-3 py-4 text-center text-gray-500 text-sm">
                                             No active products found. Please contact admin.
                                         </td>
                                     </tr>
@@ -546,6 +611,31 @@ function DailySheetContent() {
                                                                 }`}
                                                             placeholder={isLateNightDisabled ? 'Locked' : '0'}
                                                         />
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        {canEditBrandNote ? (
+                                                            <div className="flex items-center gap-2 min-w-[220px]">
+                                                                <input
+                                                                    type="text"
+                                                                    value={noteEntries[product._id] !== undefined ? noteEntries[product._id] : (product.brandNote || '')}
+                                                                    onChange={(e) => handleNoteChange(product._id, e.target.value)}
+                                                                    maxLength={500}
+                                                                    className="w-44 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                                    placeholder="Add brand note"
+                                                                />
+                                                                <button
+                                                                    onClick={() => handleSaveNote(product._id)}
+                                                                    disabled={savingNotes[product._id]}
+                                                                    className="px-2 py-1 bg-amber-600 text-white rounded text-xs font-medium hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                                                                >
+                                                                    {savingNotes[product._id] ? 'Saving...' : 'Save'}
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-sm text-gray-700">
+                                                                {product.brandNote?.trim() ? product.brandNote : '-'}
+                                                            </span>
+                                                        )}
                                                     </td>
                                                     <td className="px-3 py-2 whitespace-nowrap">
                                                         <button

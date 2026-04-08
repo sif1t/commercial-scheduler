@@ -47,6 +47,7 @@ const mapProduct = (product) => ({
     id: product.id,
     name: product.name,
     brand: product.brand || '',
+    brandNote: product.brand_note || '',
     team: product.team,
     monthlyTarget: Number(product.monthly_target) || 0,
     remainingStock: Number(product.remaining_stock) || 0,
@@ -680,6 +681,63 @@ app.put('/api/products/:id', protect, restrictTo('superAdmin'), async (req, res)
         }
 
         res.json(mapProduct(product));
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+app.put('/api/products/:id/brand-note', protect, restrictTo('superAdmin', 'admin'), async (req, res) => {
+    try {
+        const { brandNote } = req.body;
+
+        if (typeof brandNote !== 'string') {
+            return res.status(400).json({ error: 'brandNote must be a string' });
+        }
+
+        const note = brandNote.trim();
+        if (note.length > 500) {
+            return res.status(400).json({ error: 'Brand note cannot exceed 500 characters' });
+        }
+
+        const { data: existingProduct, error: existingProductError } = await supabase
+            .from('products')
+            .select('id, team')
+            .eq('id', req.params.id)
+            .maybeSingle();
+
+        if (existingProductError) {
+            throw existingProductError;
+        }
+
+        if (!existingProduct) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
+        // Admin can update only products from their own team. SuperAdmin can update all teams.
+        if (req.user.role !== 'superAdmin' && req.user.team !== existingProduct.team) {
+            return res.status(403).json({ error: 'You can only update notes for products in your team' });
+        }
+
+        const { data: product, error } = await supabase
+            .from('products')
+            .update({ brand_note: note })
+            .eq('id', req.params.id)
+            .select('*')
+            .maybeSingle();
+
+        if (error) {
+            throw error;
+        }
+
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+
+        res.json({
+            success: true,
+            message: 'Brand note updated successfully',
+            product: mapProduct(product)
+        });
     } catch (error) {
         res.status(400).json({ error: error.message });
     }

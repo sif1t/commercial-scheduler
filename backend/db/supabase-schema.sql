@@ -25,6 +25,7 @@ create table if not exists public.products (
     id uuid primary key default gen_random_uuid(),
     name text not null,
     brand text default '',
+    brand_note text default '',
     team text not null check (team in ('video', 'portal')),
     monthly_target integer not null default 0 check (monthly_target >= 0),
     remaining_stock integer not null default 0 check (remaining_stock >= 0),
@@ -34,6 +35,9 @@ create table if not exists public.products (
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
 );
+
+alter table public.products
+add column if not exists brand_note text default '';
 
 create table if not exists public.daily_entries (
     id uuid primary key default gen_random_uuid(),
