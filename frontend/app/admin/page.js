@@ -14,6 +14,7 @@ function AdminDashboardContent() {
         name: '',
         brand: '',
         category: '',
+        rate: '',
         team: 'video',
         monthlyTarget: '',
         remainingStock: '',
@@ -28,6 +29,13 @@ function AdminDashboardContent() {
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     const canEditBrandNote = isAnyAdmin();
+    const formatBdtCurrency = (value) => {
+        const numericValue = Number(value) || 0;
+        return `৳ ${new Intl.NumberFormat('en-BD', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(numericValue)}`;
+    };
 
     useEffect(() => {
         fetchProducts();
@@ -87,6 +95,7 @@ function AdminDashboardContent() {
                     name: formData.name,
                     brand: formData.brand,
                     category: formData.category,
+                    rate: Number(formData.rate || 0),
                     team: formData.team,
                     monthlyTarget: Number(formData.monthlyTarget),
                     remainingStock: Number(formData.remainingStock || formData.monthlyTarget),
@@ -100,7 +109,7 @@ function AdminDashboardContent() {
 
             if (response.ok) {
                 setSuccess(editingId ? 'Product updated successfully' : 'Product added successfully');
-                setFormData({ name: '', brand: '', category: '', team: 'video', monthlyTarget: '', remainingStock: '', startDate: '', endDate: '' });
+                setFormData({ name: '', brand: '', category: '', rate: '', team: 'video', monthlyTarget: '', remainingStock: '', startDate: '', endDate: '' });
                 setEditingId(null);
                 fetchProducts();
             } else {
@@ -125,6 +134,7 @@ function AdminDashboardContent() {
             name: product.name,
             brand: product.brand || '',
             category: product.category || '',
+            rate: (product.rate ?? 0).toString(),
             team: product.team,
             monthlyTarget: product.monthlyTarget.toString(),
             remainingStock: product.remainingStock.toString(),
@@ -207,7 +217,7 @@ function AdminDashboardContent() {
 
     const cancelEdit = () => {
         setEditingId(null);
-        setFormData({ name: '', brand: '', category: '', team: 'video', monthlyTarget: '', remainingStock: '', startDate: '', endDate: '' });
+        setFormData({ name: '', brand: '', category: '', rate: '', team: 'video', monthlyTarget: '', remainingStock: '', startDate: '', endDate: '' });
         setError('');
         setSuccess('');
     };
@@ -370,7 +380,7 @@ function AdminDashboardContent() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Monthly Target *
@@ -397,6 +407,21 @@ function AdminDashboardContent() {
                                         onChange={(e) => setFormData({ ...formData, remainingStock: e.target.value })}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         placeholder="Auto-fills from target"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Rate (BDT)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={formData.rate}
+                                        onChange={(e) => setFormData({ ...formData, rate: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="Enter rate in BDT"
                                     />
                                 </div>
 
@@ -439,7 +464,7 @@ function AdminDashboardContent() {
                                         type="button"
                                         onClick={() => {
                                             setEditingId(null);
-                                            setFormData({ name: '', brand: '', category: '', team: 'video', monthlyTarget: '', remainingStock: '', startDate: '', endDate: '' });
+                                            setFormData({ name: '', brand: '', category: '', rate: '', team: 'video', monthlyTarget: '', remainingStock: '', startDate: '', endDate: '' });
                                         }}
                                         className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
                                     >
@@ -506,6 +531,9 @@ function AdminDashboardContent() {
                                         Category
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Rate
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Brand Update Note
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -536,7 +564,7 @@ function AdminDashboardContent() {
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {products.filter(p => activeTeamFilter === 'all' || p.team === activeTeamFilter).length === 0 ? (
                                     <tr>
-                                        <td colSpan={isSuperAdmin() ? 11 : 10} className="px-6 py-4 text-center text-gray-500">
+                                        <td colSpan={isSuperAdmin() ? 12 : 11} className="px-6 py-4 text-center text-gray-500">
                                             No products found for this team. {isSuperAdmin() && 'Add your first product above.'}
                                         </td>
                                     </tr>
@@ -553,6 +581,9 @@ function AdminDashboardContent() {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-gray-700">
                                                     {product.category || '-'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-gray-700">
+                                                    {formatBdtCurrency(product.rate)}
                                                 </td>
                                                 <td className="px-6 py-4 text-gray-700">
                                                     {canEditBrandNote ? (
@@ -680,6 +711,7 @@ function AdminDashboardContent() {
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Product Name</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Brand</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Category</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Rate</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Start Date</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">End Date</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Monthly Target</th>
@@ -697,6 +729,7 @@ function AdminDashboardContent() {
                                                             <td className="px-4 py-3 font-semibold text-gray-900">{product.name}</td>
                                                             <td className="px-4 py-3 text-gray-700">{product.brand || '-'}</td>
                                                             <td className="px-4 py-3 text-gray-700">{product.category || '-'}</td>
+                                                            <td className="px-4 py-3 text-gray-700">{formatBdtCurrency(product.rate)}</td>
                                                             <td className="px-4 py-3 text-sm text-gray-600">
                                                                 {product.startDate ? new Date(product.startDate).toLocaleDateString('en-GB') : '-'}
                                                             </td>
@@ -741,7 +774,7 @@ function AdminDashboardContent() {
                                             </tbody>
                                             <tfoot className="bg-purple-200">
                                                 <tr className="font-bold">
-                                                    <td className="px-4 py-3 text-purple-900" colSpan="5">TOTAL (Video Team)</td>
+                                                    <td className="px-4 py-3 text-purple-900" colSpan="6">TOTAL (Video Team)</td>
                                                     <td className="px-4 py-3 text-blue-800">
                                                         {products.filter(p => p.team === 'video').reduce((sum, p) => sum + p.monthlyTarget, 0).toLocaleString()}
                                                     </td>
@@ -777,6 +810,7 @@ function AdminDashboardContent() {
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase tracking-wider">Product Name</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase tracking-wider">Brand</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase tracking-wider">Category</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase tracking-wider">Rate</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase tracking-wider">Start Date</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase tracking-wider">End Date</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase tracking-wider">Monthly Target</th>
@@ -794,6 +828,7 @@ function AdminDashboardContent() {
                                                             <td className="px-4 py-3 font-semibold text-gray-900">{product.name}</td>
                                                             <td className="px-4 py-3 text-gray-700">{product.brand || '-'}</td>
                                                             <td className="px-4 py-3 text-gray-700">{product.category || '-'}</td>
+                                                            <td className="px-4 py-3 text-gray-700">{formatBdtCurrency(product.rate)}</td>
                                                             <td className="px-4 py-3 text-sm text-gray-600">
                                                                 {product.startDate ? new Date(product.startDate).toLocaleDateString('en-GB') : '-'}
                                                             </td>
@@ -838,7 +873,7 @@ function AdminDashboardContent() {
                                             </tbody>
                                             <tfoot className="bg-green-200">
                                                 <tr className="font-bold">
-                                                    <td className="px-4 py-3 text-green-900" colSpan="5">TOTAL (Portal Team)</td>
+                                                    <td className="px-4 py-3 text-green-900" colSpan="6">TOTAL (Portal Team)</td>
                                                     <td className="px-4 py-3 text-blue-800">
                                                         {products.filter(p => p.team === 'portal').reduce((sum, p) => sum + p.monthlyTarget, 0).toLocaleString()}
                                                     </td>

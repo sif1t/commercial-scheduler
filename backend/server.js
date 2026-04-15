@@ -42,22 +42,34 @@ const mapUser = (user) => ({
     updatedAt: user.updated_at
 });
 
-const mapProduct = (product) => ({
-    _id: product.id,
-    id: product.id,
-    name: product.name,
-    brand: product.brand || '',
-    category: product.category || '',
-    brandNote: product.brand_note || '',
-    team: product.team,
-    monthlyTarget: Number(product.monthly_target) || 0,
-    remainingStock: Number(product.remaining_stock) || 0,
-    startDate: product.start_date,
-    endDate: product.end_date,
-    isActive: product.is_active,
-    createdAt: product.created_at,
-    updatedAt: product.updated_at
-});
+const canViewRate = (userRole) => userRole === 'superAdmin' || userRole === 'admin';
+
+const mapProduct = (product, options = {}) => {
+    const { includeRate = false } = options;
+
+    const mappedProduct = {
+        _id: product.id,
+        id: product.id,
+        name: product.name,
+        brand: product.brand || '',
+        category: product.category || '',
+        brandNote: product.brand_note || '',
+        team: product.team,
+        monthlyTarget: Number(product.monthly_target) || 0,
+        remainingStock: Number(product.remaining_stock) || 0,
+        startDate: product.start_date,
+        endDate: product.end_date,
+        isActive: product.is_active,
+        createdAt: product.created_at,
+        updatedAt: product.updated_at
+    };
+
+    if (includeRate) {
+        mappedProduct.rate = Number(product.rate) || 0;
+    }
+
+    return mappedProduct;
+};
 
 const mapDailyEntry = (entry, product = null) => ({
     _id: entry.id,
@@ -575,7 +587,7 @@ app.get('/api/products', protect, async (req, res) => {
             throw error;
         }
 
-        res.json((products || []).map(mapProduct));
+        res.json((products || []).map((product) => mapProduct(product, { includeRate: canViewRate(req.user.role) })));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -599,7 +611,7 @@ app.get('/api/products/active', protect, async (req, res) => {
             throw error;
         }
 
-        res.json((products || []).map(mapProduct));
+        res.json((products || []).map((product) => mapProduct(product, { includeRate: canViewRate(req.user.role) })));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -607,7 +619,7 @@ app.get('/api/products/active', protect, async (req, res) => {
 
 app.post('/api/products', protect, restrictTo('superAdmin'), async (req, res) => {
     try {
-        const { name, brand, category, team, monthlyTarget, remainingStock, startDate, endDate, isActive } = req.body;
+        const { name, brand, category, team, monthlyTarget, remainingStock, rate, startDate, endDate, isActive } = req.body;
 
         if (!team || !['video', 'portal'].includes(team)) {
             return res.status(400).json({ error: 'Valid team (video or portal) is required' });
@@ -622,6 +634,7 @@ app.post('/api/products', protect, restrictTo('superAdmin'), async (req, res) =>
                 team,
                 monthly_target: Number(monthlyTarget) || 0,
                 remaining_stock: remainingStock !== undefined ? Number(remainingStock) || 0 : Number(monthlyTarget) || 0,
+                rate: rate !== undefined ? Number(rate) || 0 : 0,
                 start_date: startDate || null,
                 end_date: endDate || null,
                 is_active: isActive !== undefined ? Boolean(isActive) : true
@@ -633,7 +646,7 @@ app.post('/api/products', protect, restrictTo('superAdmin'), async (req, res) =>
             throw error;
         }
 
-        res.status(201).json(mapProduct(product));
+        res.status(201).json(mapProduct(product, { includeRate: true }));
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -641,7 +654,7 @@ app.post('/api/products', protect, restrictTo('superAdmin'), async (req, res) =>
 
 app.put('/api/products/:id', protect, restrictTo('superAdmin'), async (req, res) => {
     try {
-        const { name, brand, category, team, monthlyTarget, remainingStock, startDate, endDate, isActive } = req.body;
+        const { name, brand, category, team, monthlyTarget, remainingStock, rate, startDate, endDate, isActive } = req.body;
 
         if (team && !['video', 'portal'].includes(team)) {
             return res.status(400).json({ error: 'Team must be video or portal' });
@@ -653,6 +666,7 @@ app.put('/api/products/:id', protect, restrictTo('superAdmin'), async (req, res)
             category,
             monthly_target: monthlyTarget !== undefined ? Number(monthlyTarget) || 0 : undefined,
             remaining_stock: remainingStock !== undefined ? Number(remainingStock) || 0 : undefined,
+            rate: rate !== undefined ? Number(rate) || 0 : undefined,
             start_date: startDate || null,
             end_date: endDate || null,
             is_active: isActive
@@ -683,7 +697,7 @@ app.put('/api/products/:id', protect, restrictTo('superAdmin'), async (req, res)
             return res.status(404).json({ error: 'Product not found' });
         }
 
-        res.json(mapProduct(product));
+        res.json(mapProduct(product, { includeRate: true }));
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -739,7 +753,7 @@ app.put('/api/products/:id/brand-note', protect, restrictTo('superAdmin', 'admin
         res.json({
             success: true,
             message: 'Brand note updated successfully',
-            product: mapProduct(product)
+            product: mapProduct(product, { includeRate: canViewRate(req.user.role) })
         });
     } catch (error) {
         res.status(400).json({ error: error.message });
@@ -907,7 +921,7 @@ app.post('/api/daily-entries', async (req, res) => {
         res.status(201).json({
             success: true,
             entry: mapDailyEntry(entry),
-            product: product ? mapProduct(product) : null,
+            product: product ? mapProduct(product, { includeRate: canViewRate(req.user.role) }) : null,
             stockDeducted: stockToDeduct
         });
     } catch (error) {
@@ -944,7 +958,7 @@ app.get('/api/daily-entries', async (req, res) => {
                 throw productsError;
             }
 
-            productsMap = new Map((products || []).map((product) => [product.id, mapProduct(product)]));
+            productsMap = new Map((products || []).map((product) => [product.id, mapProduct(product, { includeRate: false })]));
         }
 
         const mappedEntries = (entries || []).map((entry) => {
