@@ -8,6 +8,8 @@ import { useAuth } from '@/contexts/AuthContext';
 function AdminDashboardContent() {
     const { user, isSuperAdmin, isAnyAdmin } = useAuth();
     const [products, setProducts] = useState([]);
+    const [noteEntries, setNoteEntries] = useState({});
+    const [savingNotes, setSavingNotes] = useState({});
     const [formData, setFormData] = useState({
         name: '',
         brand: '',
@@ -25,6 +27,7 @@ function AdminDashboardContent() {
     const [success, setSuccess] = useState('');
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const canEditBrandNote = isAnyAdmin();
 
     useEffect(() => {
         fetchProducts();
@@ -207,6 +210,68 @@ function AdminDashboardContent() {
         setFormData({ name: '', brand: '', category: '', team: 'video', monthlyTarget: '', remainingStock: '', startDate: '', endDate: '' });
         setError('');
         setSuccess('');
+    };
+
+    const handleNoteChange = (productId, value) => {
+        setNoteEntries((prev) => ({
+            ...prev,
+            [productId]: value
+        }));
+    };
+
+    const handleSaveNote = async (productId) => {
+        if (!canEditBrandNote) {
+            return;
+        }
+
+        const noteToSave = (noteEntries[productId] || '').trim();
+
+        setSavingNotes((prev) => ({
+            ...prev,
+            [productId]: true
+        }));
+
+        try {
+            setError('');
+            setSuccess('');
+
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/api/products/${productId}/brand-note`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ brandNote: noteToSave })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to save brand note');
+            }
+
+            setProducts((prevProducts) => prevProducts.map((product) => (
+                product._id === productId
+                    ? { ...product, brandNote: data.product?.brandNote || noteToSave }
+                    : product
+            )));
+
+            setNoteEntries((prev) => ({
+                ...prev,
+                [productId]: data.product?.brandNote || noteToSave
+            }));
+
+            setSuccess('Brand note updated successfully');
+        } catch (error) {
+            console.error('Error saving brand note:', error);
+            setError(error.message || 'Failed to save brand note');
+        } finally {
+            setSavingNotes((prev) => ({
+                ...prev,
+                [productId]: false
+            }));
+        }
     };
 
     return (
@@ -441,6 +506,9 @@ function AdminDashboardContent() {
                                         Category
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Brand Update Note
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Team
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -468,7 +536,7 @@ function AdminDashboardContent() {
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {products.filter(p => activeTeamFilter === 'all' || p.team === activeTeamFilter).length === 0 ? (
                                     <tr>
-                                        <td colSpan="10" className="px-6 py-4 text-center text-gray-500">
+                                        <td colSpan={isSuperAdmin() ? 11 : 10} className="px-6 py-4 text-center text-gray-500">
                                             No products found for this team. {isSuperAdmin() && 'Add your first product above.'}
                                         </td>
                                     </tr>
@@ -485,6 +553,31 @@ function AdminDashboardContent() {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-gray-700">
                                                     {product.category || '-'}
+                                                </td>
+                                                <td className="px-6 py-4 text-gray-700">
+                                                    {canEditBrandNote ? (
+                                                        <div className="flex items-center gap-2 min-w-[260px]">
+                                                            <input
+                                                                type="text"
+                                                                value={noteEntries[product._id] !== undefined ? noteEntries[product._id] : (product.brandNote || '')}
+                                                                onChange={(e) => handleNoteChange(product._id, e.target.value)}
+                                                                maxLength={500}
+                                                                className="w-48 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                                placeholder="Add daily brand update"
+                                                            />
+                                                            <button
+                                                                onClick={() => handleSaveNote(product._id)}
+                                                                disabled={savingNotes[product._id]}
+                                                                className="px-2 py-1 bg-amber-600 text-white rounded text-xs font-medium hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                                                            >
+                                                                {savingNotes[product._id] ? 'Saving...' : 'Save'}
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-sm text-gray-700">
+                                                            {product.brandNote?.trim() ? product.brandNote : '-'}
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${product.team === 'video'

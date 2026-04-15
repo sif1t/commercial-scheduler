@@ -632,9 +632,12 @@ function DailySheetContent() {
                                                                 </button>
                                                             </div>
                                                         ) : (
-                                                            <span className="text-sm text-gray-700">
-                                                                {product.brandNote?.trim() ? product.brandNote : '-'}
-                                                            </span>
+                                                            <input
+                                                                type="text"
+                                                                readOnly
+                                                                value={product.brandNote?.trim() ? product.brandNote : 'No update yet'}
+                                                                className="w-56 px-2 py-1 text-sm border border-gray-200 rounded bg-gray-100 text-gray-700 cursor-not-allowed"
+                                                            />
                                                         )}
                                                     </td>
                                                     <td className="px-3 py-2 whitespace-nowrap">
