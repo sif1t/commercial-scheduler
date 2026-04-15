@@ -11,6 +11,7 @@ function AdminDashboardContent() {
     const [formData, setFormData] = useState({
         name: '',
         brand: '',
+        category: '',
         team: 'video',
         monthlyTarget: '',
         remainingStock: '',
@@ -82,6 +83,7 @@ function AdminDashboardContent() {
                 body: JSON.stringify({
                     name: formData.name,
                     brand: formData.brand,
+                    category: formData.category,
                     team: formData.team,
                     monthlyTarget: Number(formData.monthlyTarget),
                     remainingStock: Number(formData.remainingStock || formData.monthlyTarget),
@@ -95,7 +97,7 @@ function AdminDashboardContent() {
 
             if (response.ok) {
                 setSuccess(editingId ? 'Product updated successfully' : 'Product added successfully');
-                setFormData({ name: '', brand: '', team: 'video', monthlyTarget: '', remainingStock: '', startDate: '', endDate: '' });
+                setFormData({ name: '', brand: '', category: '', team: 'video', monthlyTarget: '', remainingStock: '', startDate: '', endDate: '' });
                 setEditingId(null);
                 fetchProducts();
             } else {
@@ -119,6 +121,7 @@ function AdminDashboardContent() {
         setFormData({
             name: product.name,
             brand: product.brand || '',
+            category: product.category || '',
             team: product.team,
             monthlyTarget: product.monthlyTarget.toString(),
             remainingStock: product.remainingStock.toString(),
@@ -201,7 +204,7 @@ function AdminDashboardContent() {
 
     const cancelEdit = () => {
         setEditingId(null);
-        setFormData({ name: '', brand: '', team: 'video', monthlyTarget: '', remainingStock: '', startDate: '', endDate: '' });
+        setFormData({ name: '', brand: '', category: '', team: 'video', monthlyTarget: '', remainingStock: '', startDate: '', endDate: '' });
         setError('');
         setSuccess('');
     };
@@ -245,7 +248,7 @@ function AdminDashboardContent() {
                         </h2>
 
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Product Name *
@@ -286,6 +289,19 @@ function AdminDashboardContent() {
                                         <option value="video">Video Team</option>
                                         <option value="portal">Portal Team</option>
                                     </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Category
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.category}
+                                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="Enter category"
+                                    />
                                 </div>
                             </div>
 
@@ -358,7 +374,7 @@ function AdminDashboardContent() {
                                         type="button"
                                         onClick={() => {
                                             setEditingId(null);
-                                            setFormData({ name: '', brand: '', team: 'video', monthlyTarget: '', remainingStock: '', startDate: '', endDate: '' });
+                                            setFormData({ name: '', brand: '', category: '', team: 'video', monthlyTarget: '', remainingStock: '', startDate: '', endDate: '' });
                                         }}
                                         className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
                                     >
@@ -422,6 +438,9 @@ function AdminDashboardContent() {
                                         Brand
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Category
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Team
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -449,7 +468,7 @@ function AdminDashboardContent() {
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {products.filter(p => activeTeamFilter === 'all' || p.team === activeTeamFilter).length === 0 ? (
                                     <tr>
-                                        <td colSpan="9" className="px-6 py-4 text-center text-gray-500">
+                                        <td colSpan="10" className="px-6 py-4 text-center text-gray-500">
                                             No products found for this team. {isSuperAdmin() && 'Add your first product above.'}
                                         </td>
                                     </tr>
@@ -463,6 +482,9 @@ function AdminDashboardContent() {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-gray-700">
                                                     {product.brand || '-'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-gray-700">
+                                                    {product.category || '-'}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${product.team === 'video'
@@ -564,6 +586,7 @@ function AdminDashboardContent() {
                                                 <tr>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Product Name</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Brand</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Category</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Start Date</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">End Date</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-purple-900 uppercase tracking-wider">Monthly Target</th>
@@ -580,6 +603,7 @@ function AdminDashboardContent() {
                                                         <tr key={product._id} className={index % 2 === 0 ? 'bg-white' : 'bg-purple-50'}>
                                                             <td className="px-4 py-3 font-semibold text-gray-900">{product.name}</td>
                                                             <td className="px-4 py-3 text-gray-700">{product.brand || '-'}</td>
+                                                            <td className="px-4 py-3 text-gray-700">{product.category || '-'}</td>
                                                             <td className="px-4 py-3 text-sm text-gray-600">
                                                                 {product.startDate ? new Date(product.startDate).toLocaleDateString('en-GB') : '-'}
                                                             </td>
@@ -624,7 +648,7 @@ function AdminDashboardContent() {
                                             </tbody>
                                             <tfoot className="bg-purple-200">
                                                 <tr className="font-bold">
-                                                    <td className="px-4 py-3 text-purple-900" colSpan="4">TOTAL (Video Team)</td>
+                                                    <td className="px-4 py-3 text-purple-900" colSpan="5">TOTAL (Video Team)</td>
                                                     <td className="px-4 py-3 text-blue-800">
                                                         {products.filter(p => p.team === 'video').reduce((sum, p) => sum + p.monthlyTarget, 0).toLocaleString()}
                                                     </td>
@@ -659,6 +683,7 @@ function AdminDashboardContent() {
                                                 <tr>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase tracking-wider">Product Name</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase tracking-wider">Brand</th>
+                                                    <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase tracking-wider">Category</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase tracking-wider">Start Date</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase tracking-wider">End Date</th>
                                                     <th className="px-4 py-3 text-left text-xs font-bold text-green-900 uppercase tracking-wider">Monthly Target</th>
@@ -675,6 +700,7 @@ function AdminDashboardContent() {
                                                         <tr key={product._id} className={index % 2 === 0 ? 'bg-white' : 'bg-green-50'}>
                                                             <td className="px-4 py-3 font-semibold text-gray-900">{product.name}</td>
                                                             <td className="px-4 py-3 text-gray-700">{product.brand || '-'}</td>
+                                                            <td className="px-4 py-3 text-gray-700">{product.category || '-'}</td>
                                                             <td className="px-4 py-3 text-sm text-gray-600">
                                                                 {product.startDate ? new Date(product.startDate).toLocaleDateString('en-GB') : '-'}
                                                             </td>
@@ -719,7 +745,7 @@ function AdminDashboardContent() {
                                             </tbody>
                                             <tfoot className="bg-green-200">
                                                 <tr className="font-bold">
-                                                    <td className="px-4 py-3 text-green-900" colSpan="4">TOTAL (Portal Team)</td>
+                                                    <td className="px-4 py-3 text-green-900" colSpan="5">TOTAL (Portal Team)</td>
                                                     <td className="px-4 py-3 text-blue-800">
                                                         {products.filter(p => p.team === 'portal').reduce((sum, p) => sum + p.monthlyTarget, 0).toLocaleString()}
                                                     </td>

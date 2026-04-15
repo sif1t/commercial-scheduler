@@ -47,6 +47,7 @@ const mapProduct = (product) => ({
     id: product.id,
     name: product.name,
     brand: product.brand || '',
+    category: product.category || '',
     brandNote: product.brand_note || '',
     team: product.team,
     monthlyTarget: Number(product.monthly_target) || 0,
@@ -606,7 +607,7 @@ app.get('/api/products/active', protect, async (req, res) => {
 
 app.post('/api/products', protect, restrictTo('superAdmin'), async (req, res) => {
     try {
-        const { name, brand, team, monthlyTarget, remainingStock, startDate, endDate, isActive } = req.body;
+        const { name, brand, category, team, monthlyTarget, remainingStock, startDate, endDate, isActive } = req.body;
 
         if (!team || !['video', 'portal'].includes(team)) {
             return res.status(400).json({ error: 'Valid team (video or portal) is required' });
@@ -617,6 +618,7 @@ app.post('/api/products', protect, restrictTo('superAdmin'), async (req, res) =>
             .insert({
                 name,
                 brand: brand || '',
+                category: category || '',
                 team,
                 monthly_target: Number(monthlyTarget) || 0,
                 remaining_stock: remainingStock !== undefined ? Number(remainingStock) || 0 : Number(monthlyTarget) || 0,
@@ -639,7 +641,7 @@ app.post('/api/products', protect, restrictTo('superAdmin'), async (req, res) =>
 
 app.put('/api/products/:id', protect, restrictTo('superAdmin'), async (req, res) => {
     try {
-        const { name, brand, team, monthlyTarget, remainingStock, startDate, endDate, isActive } = req.body;
+        const { name, brand, category, team, monthlyTarget, remainingStock, startDate, endDate, isActive } = req.body;
 
         if (team && !['video', 'portal'].includes(team)) {
             return res.status(400).json({ error: 'Team must be video or portal' });
@@ -648,6 +650,7 @@ app.put('/api/products/:id', protect, restrictTo('superAdmin'), async (req, res)
         const updateData = {
             name,
             brand,
+            category,
             monthly_target: monthlyTarget !== undefined ? Number(monthlyTarget) || 0 : undefined,
             remaining_stock: remainingStock !== undefined ? Number(remainingStock) || 0 : undefined,
             start_date: startDate || null,
