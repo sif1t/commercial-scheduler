@@ -484,6 +484,9 @@ function DailySheetContent() {
                                         Product Name
                                     </th>
                                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Category
+                                    </th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Start Date
                                     </th>
                                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -518,7 +521,7 @@ function DailySheetContent() {
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {products.length === 0 ? (
                                     <tr>
-                                        <td colSpan="11" className="px-3 py-4 text-center text-gray-500 text-sm">
+                                        <td colSpan="12" className="px-3 py-4 text-center text-gray-500 text-sm">
                                             No active products found. Please contact admin.
                                         </td>
                                     </tr>
@@ -545,6 +548,9 @@ function DailySheetContent() {
                                                 <tr key={product._id} className="hover:bg-gray-50">
                                                     <td className="px-3 py-2 whitespace-nowrap font-medium text-gray-900 text-sm">
                                                         {product.name}
+                                                    </td>
+                                                    <td className="px-3 py-2 whitespace-nowrap text-gray-700 text-sm">
+                                                        {product.category || '-'}
                                                     </td>
                                                     <td className="px-3 py-2 whitespace-nowrap text-gray-700 text-sm">
                                                         {product.startDate ? new Date(product.startDate).toLocaleDateString('en-GB') : '-'}

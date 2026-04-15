@@ -611,26 +611,26 @@ video {
 .w-44 {
   width: 11rem;
 }
-.w-6 {
-  width: 1.5rem;
-}
-.w-full {
-  width: 100%;
-}
 .w-48 {
   width: 12rem;
 }
 .w-56 {
   width: 14rem;
 }
+.w-6 {
+  width: 1.5rem;
+}
+.w-full {
+  width: 100%;
+}
 .min-w-\[220px\] {
   min-width: 220px;
 }
-.min-w-full {
-  min-width: 100%;
-}
 .min-w-\[260px\] {
   min-width: 260px;
+}
+.min-w-full {
+  min-width: 100%;
 }
 .max-w-4xl {
   max-width: 56rem;
